@@ -1,0 +1,29 @@
+# Introduction
+
+a test
+
+This book provides a visual story of efforts to quantify the influence of streamflow on water temperature in small, headwater streams.
+
+Access the GitHub repo here: <https://github.com/j-baldock/TempFlowSensitivity.git>
+
+*This information is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The information has not received final approval by the U.S. Geological Survey (USGS) and is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the information.*
+
+Project team: Jeff Baldock, Jenn Fair, Ben Letcher, Robert Al-Chokhachy, Jason Dunham, Clint Muhlfeld
+
+------------------------------------------------------------------------
+
+<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+
+Session Information
+
+</button>
+
+:::: {#collapseOne .accordion-collapse .collapse}
+<div>
+
+```{r}
+sessionInfo()
+```
+
+</div>
+::::
