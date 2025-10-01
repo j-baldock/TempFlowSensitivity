@@ -8,5 +8,45 @@
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]
+  },
+  {
+    "objectID": "FormatData.html",
+    "href": "FormatData.html",
+    "title": "2  Explore Data",
+    "section": "",
+    "text": "2.1 Site information\nPurpose: Load EcoDrought data and explore visually\nCode\nsiteinfo &lt;- read_csv(\"C:/Users/jbaldock/OneDrive - DOI/Documents/USGS/EcoDrought/EcoDrought Working/Data/EcoDrought_SiteInformation.csv\")\ndatatable(siteinfo)\n\n\n\n\n\n\nCode\nsiteinfo_sp &lt;- st_as_sf(siteinfo, coords = c(\"long\", \"lat\"), crs = 4326)\nmapview(siteinfo_sp, zcol = \"designation\")",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Explore Data</span>"
+    ]
+  },
+  {
+    "objectID": "FormatData.html#flow-and-temp-data",
+    "href": "FormatData.html#flow-and-temp-data",
+    "title": "2  Explore Data",
+    "section": "2.2 Flow and temp data",
+    "text": "2.2 Flow and temp data\n\n\nCode\ndat &lt;- read_csv(\"C:/Users/jbaldock/OneDrive - DOI/Documents/USGS/EcoDrought/EcoDrought Working/Data/EcoDrought_FlowTempData_DailyWeekly.csv\")\ndat\n\n\n# A tibble: 202,014 × 31\n   station_no site_name      site_id basin   subbasin region   lat  long elev_ft\n   &lt;chr&gt;      &lt;chr&gt;          &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;\n 1 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 2 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 3 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 4 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 5 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 6 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 7 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 8 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 9 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n10 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n# ℹ 202,004 more rows\n# ℹ 22 more variables: area_sqmi &lt;dbl&gt;, designation &lt;chr&gt;, date &lt;date&gt;,\n#   DischargeReliability &lt;dbl&gt;, TempReliability &lt;dbl&gt;, flow_mean &lt;dbl&gt;,\n#   flow_min &lt;dbl&gt;, flow_max &lt;dbl&gt;, tempc_mean &lt;dbl&gt;, tempc_min &lt;dbl&gt;,\n#   tempc_max &lt;dbl&gt;, flow_mean_filled &lt;dbl&gt;, flow_mean_cms &lt;dbl&gt;,\n#   flow_mean_filled_cms &lt;dbl&gt;, area_sqkm &lt;dbl&gt;, Yield_mm &lt;dbl&gt;,\n#   Yield_filled_mm &lt;dbl&gt;, flow_mean_7 &lt;dbl&gt;, flow_mean_filled_7 &lt;dbl&gt;, …\n\n\nUnique basins\n\n\nCode\nunique(dat$basin)\n\n\n[1] \"Flathead\"       \"West Brook\"     \"Donner Blitzen\" \"Paine Run\"     \n[5] \"Piney River\"    \"Staunton River\" \"Shields River\"  \"Snake River\"   \n\n\n\n2.2.1 View daily temp\n\nWest BrookPaine RunStaunton RiverFlathead RiverYellowstone RiverSnake RiverDonner und Blitzen River\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n2.2.2 View daily flow\n\nWest BrookPaine RunStaunton RiverFlathead RiverYellowstone RiverSnake RiverDonner und Blitzen River",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Explore Data</span>"
+    ]
+  },
+  {
+    "objectID": "FormatData.html#daymet-data",
+    "href": "FormatData.html#daymet-data",
+    "title": "2  Explore Data",
+    "section": "2.3 Daymet data",
+    "text": "2.3 Daymet data\nTrim siteinfo to sites with temp/flow data\n\n\nCode\nsiteinfo_sub &lt;- siteinfo %&gt;% filter(site_name %in% unique(dat$site_name))\n\n\nDownload Daymet daily air temperature data for each site (point locations)\n\n\nCode\nclimlist &lt;- vector(\"list\", length = dim(siteinfo_sub)[1])\nfor (i in 1:dim(siteinfo_sub)[1]) {\n  clim &lt;- download_daymet(site = siteinfo_sub$site_name[i], lat = siteinfo_sub$lat[i], lon = siteinfo_sub$long[i], start = 2010, end = 2024, internal = T)\n  climlist[[i]] &lt;- tibble(clim$data) %&gt;% \n    mutate(air_temp_mean = (tmax..deg.c. + tmin..deg.c.)/2, \n           date = as.Date(paste(year, yday, sep = \"-\"), \"%Y-%j\"),\n           site_name = siteinfo_sub$site_name[i]) %&gt;%\n    select(12,2,11,10,4,6,3,5) %&gt;% rename(precip_mmday = 5, swe_kgm2 = 6, daylength_sec = 7, shortrad_wm2 = 8)\n  print(i)\n}\nclimdf &lt;- do.call(rbind, climlist)\nwrite_csv(climdf, \"data/Daymet_daily.csv\")\n\n\nBind climate data to EcoD flow-temp data\n\n\nCode\nclimdf &lt;- read_csv(\"data/Daymet_daily.csv\")\ndat &lt;- dat %&gt;% left_join(climdf)\n\n\nPlot an example air (orange) and water (blue) temperature time series\n\n\nCode\ndat %&gt;% filter(site_name == \"McGeeCreekTrib\") %&gt;% #select(date, tempc_mean, air_temp_mean) %&gt;% \n  ggplot() + \n  geom_line(aes(x = date, y = air_temp_mean), color = \"darkorange\") + \n  geom_line(aes(x = date, y = tempc_mean), color = \"blue\") +\n  theme_bw() + ylab(\"temperature (deg C)\")",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Explore Data</span>"
+    ]
+  },
+  {
+    "objectID": "FormatData.html#breakpoints",
+    "href": "FormatData.html#breakpoints",
+    "title": "2  Explore Data",
+    "section": "2.4 Breakpoints",
+    "text": "2.4 Breakpoints\nDefine periods of air-water temperature synchronization per Letcher et al. (2016, PeerJ)\nShow how this works for a single site: McGeeCreekTrib\n\n\nCode\nsub &lt;- dat %&gt;% \n  filter(site_name == \"NF Spread Creek Upper\") %&gt;%\n  mutate(index = ifelse(tempc_mean &gt; 0, (tempc_mean - air_temp_mean) / tempc_mean, NA),\n         year = year(date))\n\n# sub_indexci &lt;- sub %&gt;% \n#   filter(yday &gt;= 125, yday &lt;= 275) %&gt;% \n#   group_by(site_name) %&gt;% \n#   summarize(index_low = quantile(index, probs = 0.001, na.rm = TRUE),\n#             index_high = quantile(index, probs = 0.999, na.rm = TRUE)) %&gt;%\n#   ungroup()\n\nsub_indexci &lt;- sub %&gt;% \n  filter(yday &gt;= 125, yday &lt;= 275) %&gt;% \n  group_by(site_name, year) %&gt;% \n  summarize(index_low = t.test(index, conf.level = 0.999)$conf.int[1],\n            index_high = t.test(index, conf.level = 0.999)$conf.int[2]) %&gt;%\n  ungroup()\n\n# \n# sub %&gt;% \n#   ggplot() + \n#   geom_point(aes(x = date, y = index)) + \n#   theme_bw() + ylab(\"temperature index\") + \n#   ylim(-20,20)\n#   # geom_hline(yintercept = c(-1,1), color = \"red\")\n\nsub %&gt;% \n  ggplot() + \n  geom_point(aes(x = yday, y = index)) + \n  theme_bw() + ylab(\"temperature index\") + \n  ylim(-20,20) +\n  # geom_hline(yintercept = c(-1,1), color = \"red\") +\n  geom_vline(xintercept = c(125,275), color = \"blue\") +\n  geom_hline(data = sub_indexci, aes(yintercept = index_low), color = \"red\") +\n  geom_hline(data = sub_indexci, aes(yintercept = index_high), color = \"red\") +\n  facet_wrap(~year)\n\n\n\n\n\n\n\n\n\n\n\nCode\ndat \n\n\n# A tibble: 202,014 × 37\n   station_no site_name      site_id basin   subbasin region   lat  long elev_ft\n   &lt;chr&gt;      &lt;chr&gt;          &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;\n 1 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 2 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 3 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 4 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 5 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 6 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 7 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 8 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n 9 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n10 12355347   Big Creek NWIS BIG     Flathe… Big Cre… Flat    48.6 -114.   3528.\n# ℹ 202,004 more rows\n# ℹ 28 more variables: area_sqmi &lt;dbl&gt;, designation &lt;chr&gt;, date &lt;date&gt;,\n#   DischargeReliability &lt;dbl&gt;, TempReliability &lt;dbl&gt;, flow_mean &lt;dbl&gt;,\n#   flow_min &lt;dbl&gt;, flow_max &lt;dbl&gt;, tempc_mean &lt;dbl&gt;, tempc_min &lt;dbl&gt;,\n#   tempc_max &lt;dbl&gt;, flow_mean_filled &lt;dbl&gt;, flow_mean_cms &lt;dbl&gt;,\n#   flow_mean_filled_cms &lt;dbl&gt;, area_sqkm &lt;dbl&gt;, Yield_mm &lt;dbl&gt;,\n#   Yield_filled_mm &lt;dbl&gt;, flow_mean_7 &lt;dbl&gt;, flow_mean_filled_7 &lt;dbl&gt;, …",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Explore Data</span>"
+    ]
   }
 ]

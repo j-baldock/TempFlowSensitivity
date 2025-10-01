@@ -18,6 +18,7 @@ book:
   date: today
   chapters:
     - index.qmd
+    - FormatData.qmd
 
 format:
   html:

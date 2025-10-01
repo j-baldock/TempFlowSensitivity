@@ -5,4 +5,5 @@ quarto::quarto_render(output_format = "html")
 
 
 quarto::quarto_render("index.qmd", output_format = "html")
+quarto::quarto_render("FormatData.qmd", output_format = "html")
 
