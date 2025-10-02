@@ -3,7 +3,7 @@ title: "Explore Data"
 format: html
 ---
 
-**Purpose:** Load EcoDrought data and explore visually
+**Purpose:** view EcoDrought stream temperature and flow data and download Daymet climate data (modeled air temperature).
 
 ```{r include=FALSE}
 library(tidyverse)
@@ -12,12 +12,14 @@ library(mapview)
 library(DT)
 library(sf)
 library(daymetr)
+library(egg)
+library(fasstr)
 ```
 
 ## Site information
 
 ```{r}
-siteinfo <- read_csv("C:/Users/jbaldock/OneDrive - DOI/Documents/USGS/EcoDrought/EcoDrought Working/Data/EcoDrought_SiteInformation.csv")
+siteinfo <- read_csv("data/EcoDrought_SiteInformation.csv")
 datatable(siteinfo)
 siteinfo_sp <- st_as_sf(siteinfo, coords = c("long", "lat"), crs = 4326)
 mapview(siteinfo_sp, zcol = "designation")
@@ -26,8 +28,9 @@ mapview(siteinfo_sp, zcol = "designation")
 
 ## Flow and temp data
 
+Load data
 ```{r}
-dat <- read_csv("C:/Users/jbaldock/OneDrive - DOI/Documents/USGS/EcoDrought/EcoDrought Working/Data/EcoDrought_FlowTempData_DailyWeekly.csv")
+dat <- read_csv("data/EcoDrought_FlowTempData_DailyWeekly.csv")
 dat
 ```
 
@@ -145,77 +148,18 @@ climdf <- do.call(rbind, climlist)
 write_csv(climdf, "data/Daymet_daily.csv")
 ```
 
-Bind climate data to EcoD flow-temp data
+Re-load Daymet climate data
 ```{r}
 climdf <- read_csv("data/Daymet_daily.csv")
-dat <- dat %>% left_join(climdf)
 ```
 
-
-Plot an example air (orange) and water (blue) temperature time series
-```{r}
-dat %>% filter(site_name == "McGeeCreekTrib") %>% #select(date, tempc_mean, air_temp_mean) %>% 
-  ggplot() + 
-  geom_line(aes(x = date, y = air_temp_mean), color = "darkorange") + 
-  geom_line(aes(x = date, y = tempc_mean), color = "blue") +
-  theme_bw() + ylab("temperature (deg C)")
+Plot example Daymet time series data (2020-2025, Avery Brook, MA)
+```{r fig.width=7, fig.height=9}
+ggarrange(climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = air_temp_mean)) + geom_line(),
+          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = precip_mmday)) + geom_line(),
+          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = swe_kgm2)) + geom_line(),
+          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = daylength_sec)) + geom_line(),
+          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = shortrad_wm2)) + geom_line(),
+          ncol = 1)
 ```
-
-
-## Breakpoints
-
-Define periods of air-water temperature synchronization per Letcher et al. (2016, PeerJ)
-
-Show how this works for a single site: *McGeeCreekTrib*
-```{r}
-sub <- dat %>% 
-  filter(site_name == "NF Spread Creek Upper") %>%
-  mutate(index = ifelse(tempc_mean > 0, (tempc_mean - air_temp_mean) / tempc_mean, NA),
-         year = year(date))
-
-# sub_indexci <- sub %>% 
-#   filter(yday >= 125, yday <= 275) %>% 
-#   group_by(site_name) %>% 
-#   summarize(index_low = quantile(index, probs = 0.001, na.rm = TRUE),
-#             index_high = quantile(index, probs = 0.999, na.rm = TRUE)) %>%
-#   ungroup()
-
-sub_indexci <- sub %>% 
-  filter(yday >= 125, yday <= 275) %>% 
-  group_by(site_name, year) %>% 
-  summarize(index_low = t.test(index, conf.level = 0.999)$conf.int[1],
-            index_high = t.test(index, conf.level = 0.999)$conf.int[2]) %>%
-  ungroup()
-
-# 
-# sub %>% 
-#   ggplot() + 
-#   geom_point(aes(x = date, y = index)) + 
-#   theme_bw() + ylab("temperature index") + 
-#   ylim(-20,20)
-#   # geom_hline(yintercept = c(-1,1), color = "red")
-
-sub %>% 
-  ggplot() + 
-  geom_point(aes(x = yday, y = index)) + 
-  theme_bw() + ylab("temperature index") + 
-  ylim(-20,20) +
-  # geom_hline(yintercept = c(-1,1), color = "red") +
-  geom_vline(xintercept = c(125,275), color = "blue") +
-  geom_hline(data = sub_indexci, aes(yintercept = index_low), color = "red") +
-  geom_hline(data = sub_indexci, aes(yintercept = index_high), color = "red") +
-  facet_wrap(~year)
-```
-
-
-```{r}
-dat 
-```
-
-
-
-
-
-
-
 
