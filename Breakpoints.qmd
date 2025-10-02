@@ -406,6 +406,10 @@ Write to file
 # Index the columns to save
 springFallBPs <- breaks[,c('basin', 'site_name', 'year', 'finalSpringBP', 'sourceSpringBP', 'finalFallBP', 'sourceFallBP','quantileLo','quantileHi')]
 
+# fix erroneous Rock Creek, 2022 spring breakpoint
+springFallBPs <- springFallBPs %>% mutate(finalSpringBP = ifelse(site_name == "Rock Creek", 111, finalSpringBP),
+                                          sourceSpringBP = ifelse(site_name == "Rock Creek", "basin mean", sourceSpringBP))
+
 # Save the output
 write_csv(springFallBPs, "data/breakpoints.csv")
 ```

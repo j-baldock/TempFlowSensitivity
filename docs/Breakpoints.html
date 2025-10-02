@@ -60,7 +60,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./FormatData.html" rel="prev">
+<link href="./FormatData.html" rel="next">
+<link href="./DataViz.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -172,14 +173,20 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./FormatData.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Explore Data</span></span></a>
+  <a href="./DataViz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Visualize Data</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./Breakpoints.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Breakpoints</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./FormatData.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Format Data</span></span></a>
   </div>
 </li>
     </ul>
@@ -733,6 +740,10 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 <div class="cell">
 <details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb22"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># Index the columns to save</span></span>
 <span><span class="va">springFallBPs</span> <span class="op">&lt;-</span> <span class="va">breaks</span><span class="op">[</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">'basin'</span>, <span class="st">'site_name'</span>, <span class="st">'year'</span>, <span class="st">'finalSpringBP'</span>, <span class="st">'sourceSpringBP'</span>, <span class="st">'finalFallBP'</span>, <span class="st">'sourceFallBP'</span>,<span class="st">'quantileLo'</span>,<span class="st">'quantileHi'</span><span class="op">)</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># fix erroneous Rock Creek, 2022 spring breakpoint</span></span>
+<span><span class="va">springFallBPs</span> <span class="op">&lt;-</span> <span class="va">springFallBPs</span> <span class="op">%&gt;%</span> <span class="fu">mutate</span><span class="op">(</span>finalSpringBP <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html">ifelse</a></span><span class="op">(</span><span class="va">site_name</span> <span class="op">==</span> <span class="st">"Rock Creek"</span>, <span class="fl">111</span>, <span class="va">finalSpringBP</span><span class="op">)</span>,</span>
+<span>                                          sourceSpringBP <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html">ifelse</a></span><span class="op">(</span><span class="va">site_name</span> <span class="op">==</span> <span class="st">"Rock Creek"</span>, <span class="st">"basin mean"</span>, <span class="va">sourceSpringBP</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Save the output</span></span>
 <span><span class="fu">write_csv</span><span class="op">(</span><span class="va">springFallBPs</span>, <span class="st">"data/breakpoints.csv"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1511,11 +1522,14 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script><nav class="page-navigation"><div class="nav-page nav-page-previous">
-      <a href="./FormatData.html" class="pagination-link" aria-label="Explore Data">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Explore Data</span></span>
+      <a href="./DataViz.html" class="pagination-link" aria-label="Visualize Data">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Visualize Data</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
+      <a href="./FormatData.html" class="pagination-link" aria-label="Format Data">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Format Data</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
 <div class="sourceCode" id="cb33" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
@@ -1925,119 +1939,123 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb33-433"><a href="#cb33-433" aria-hidden="true" tabindex="-1"></a><span class="co"># Index the columns to save</span></span>
 <span id="cb33-434"><a href="#cb33-434" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="ot">&lt;-</span> breaks[,<span class="fu">c</span>(<span class="st">'basin'</span>, <span class="st">'site_name'</span>, <span class="st">'year'</span>, <span class="st">'finalSpringBP'</span>, <span class="st">'sourceSpringBP'</span>, <span class="st">'finalFallBP'</span>, <span class="st">'sourceFallBP'</span>,<span class="st">'quantileLo'</span>,<span class="st">'quantileHi'</span>)]</span>
 <span id="cb33-435"><a href="#cb33-435" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-436"><a href="#cb33-436" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the output</span></span>
-<span id="cb33-437"><a href="#cb33-437" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(springFallBPs, <span class="st">"data/breakpoints.csv"</span>)</span>
-<span id="cb33-438"><a href="#cb33-438" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-436"><a href="#cb33-436" aria-hidden="true" tabindex="-1"></a><span class="co"># fix erroneous Rock Creek, 2022 spring breakpoint</span></span>
+<span id="cb33-437"><a href="#cb33-437" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="ot">&lt;-</span> springFallBPs <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">finalSpringBP =</span> <span class="fu">ifelse</span>(site_name <span class="sc">==</span> <span class="st">"Rock Creek"</span>, <span class="dv">111</span>, finalSpringBP),</span>
+<span id="cb33-438"><a href="#cb33-438" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">sourceSpringBP =</span> <span class="fu">ifelse</span>(site_name <span class="sc">==</span> <span class="st">"Rock Creek"</span>, <span class="st">"basin mean"</span>, sourceSpringBP))</span>
 <span id="cb33-439"><a href="#cb33-439" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-440"><a href="#cb33-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-441"><a href="#cb33-441" aria-hidden="true" tabindex="-1"></a><span class="fu">## Plot breakpoints</span></span>
-<span id="cb33-442"><a href="#cb33-442" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-443"><a href="#cb33-443" aria-hidden="true" tabindex="-1"></a>Show examples of the breakpoint calculations for one stream in each basin. Compare to Figure 3 in Letcher et al. (2016). *Note*, this doesn't really work in the Donner-Blitzen, where temperature data during winter/the shoulder seasons is entirely unavailable...nothing to inform breakpoint estimatation outside of the middle 150 days of year.</span>
+<span id="cb33-440"><a href="#cb33-440" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the output</span></span>
+<span id="cb33-441"><a href="#cb33-441" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(springFallBPs, <span class="st">"data/breakpoints.csv"</span>)</span>
+<span id="cb33-442"><a href="#cb33-442" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-443"><a href="#cb33-443" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-444"><a href="#cb33-444" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-445"><a href="#cb33-445" aria-hidden="true" tabindex="-1"></a>Create plotting function</span>
-<span id="cb33-448"><a href="#cb33-448" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-449"><a href="#cb33-449" aria-hidden="true" tabindex="-1"></a>indexfun <span class="ot">&lt;-</span> <span class="cf">function</span>(site) {</span>
-<span id="cb33-450"><a href="#cb33-450" aria-hidden="true" tabindex="-1"></a><span class="co"># thermographs</span></span>
-<span id="cb33-451"><a href="#cb33-451" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb33-452"><a href="#cb33-452" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span></span>
-<span id="cb33-453"><a href="#cb33-453" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> air_temp_mean), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
-<span id="cb33-454"><a href="#cb33-454" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalFallBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
-<span id="cb33-455"><a href="#cb33-455" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalSpringBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
-<span id="cb33-456"><a href="#cb33-456" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>year, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb33-457"><a href="#cb33-457" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span> </span>
-<span id="cb33-458"><a href="#cb33-458" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Temperature (deg. C)"</span>) </span>
-<span id="cb33-459"><a href="#cb33-459" aria-hidden="true" tabindex="-1"></a><span class="co"># temperature indices</span></span>
-<span id="cb33-460"><a href="#cb33-460" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb33-461"><a href="#cb33-461" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> index)) <span class="sc">+</span></span>
-<span id="cb33-462"><a href="#cb33-462" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="fu">c</span>(<span class="dv">125</span>,<span class="dv">275</span>), <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
-<span id="cb33-463"><a href="#cb33-463" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalFallBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
-<span id="cb33-464"><a href="#cb33-464" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalSpringBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
-<span id="cb33-465"><a href="#cb33-465" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">yintercept =</span> quantileLo), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
-<span id="cb33-466"><a href="#cb33-466" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">yintercept =</span> quantileHi), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
-<span id="cb33-467"><a href="#cb33-467" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>year, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb33-468"><a href="#cb33-468" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span> </span>
-<span id="cb33-469"><a href="#cb33-469" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylim</span>(<span class="sc">-</span><span class="dv">20</span>,<span class="dv">20</span>) <span class="sc">+</span></span>
-<span id="cb33-470"><a href="#cb33-470" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Temperature index"</span>) </span>
-<span id="cb33-471"><a href="#cb33-471" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange figures</span></span>
-<span id="cb33-472"><a href="#cb33-472" aria-hidden="true" tabindex="-1"></a><span class="fu">return</span>(<span class="fu">ggarrange</span>(p1, p2, <span class="at">ncol =</span> <span class="dv">1</span>))</span>
-<span id="cb33-473"><a href="#cb33-473" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb33-474"><a href="#cb33-474" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-475"><a href="#cb33-475" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-476"><a href="#cb33-476" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-477"><a href="#cb33-477" aria-hidden="true" tabindex="-1"></a>::: panel-tabset</span>
-<span id="cb33-478"><a href="#cb33-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-479"><a href="#cb33-479" aria-hidden="true" tabindex="-1"></a><span class="fu">### Avery Brook, West Brook</span></span>
-<span id="cb33-480"><a href="#cb33-480" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-481"><a href="#cb33-481" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Avery Brook")</span></span>
-<span id="cb33-482"><a href="#cb33-482" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-483"><a href="#cb33-483" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-484"><a href="#cb33-484" aria-hidden="true" tabindex="-1"></a><span class="fu">### Paine Run 01</span></span>
-<span id="cb33-485"><a href="#cb33-485" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-486"><a href="#cb33-486" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Paine Run 01")</span></span>
-<span id="cb33-487"><a href="#cb33-487" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-488"><a href="#cb33-488" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-489"><a href="#cb33-489" aria-hidden="true" tabindex="-1"></a><span class="fu">### Staunton River 02</span></span>
-<span id="cb33-490"><a href="#cb33-490" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-491"><a href="#cb33-491" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Staunton River 02")</span></span>
-<span id="cb33-492"><a href="#cb33-492" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-493"><a href="#cb33-493" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-494"><a href="#cb33-494" aria-hidden="true" tabindex="-1"></a><span class="fu">### McGee Creek Trib, Flathead</span></span>
-<span id="cb33-495"><a href="#cb33-495" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-496"><a href="#cb33-496" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("McGeeCreekTrib")</span></span>
-<span id="cb33-497"><a href="#cb33-497" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-498"><a href="#cb33-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-499"><a href="#cb33-499" aria-hidden="true" tabindex="-1"></a><span class="fu">### Dugout Creek, Yellowstone</span></span>
-<span id="cb33-500"><a href="#cb33-500" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-501"><a href="#cb33-501" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Dugout Creek NWIS")</span></span>
-<span id="cb33-502"><a href="#cb33-502" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-503"><a href="#cb33-503" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-504"><a href="#cb33-504" aria-hidden="true" tabindex="-1"></a><span class="fu">### Leidy Creek, Snake</span></span>
-<span id="cb33-505"><a href="#cb33-505" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-506"><a href="#cb33-506" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Leidy Creek Mouth NWIS")</span></span>
-<span id="cb33-507"><a href="#cb33-507" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-508"><a href="#cb33-508" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-509"><a href="#cb33-509" aria-hidden="true" tabindex="-1"></a><span class="fu">### Little Blitzen River, Donner-Blitzen</span></span>
-<span id="cb33-510"><a href="#cb33-510" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
-<span id="cb33-511"><a href="#cb33-511" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Little Blizten River NWIS")</span></span>
-<span id="cb33-512"><a href="#cb33-512" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-513"><a href="#cb33-513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-514"><a href="#cb33-514" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb33-515"><a href="#cb33-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-516"><a href="#cb33-516" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-517"><a href="#cb33-517" aria-hidden="true" tabindex="-1"></a>Plot trends in spring and fall breakpoints (only those we directly calculated). We have a ~limited number of years and so this isn't all that informative</span>
-<span id="cb33-520"><a href="#cb33-520" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-521"><a href="#cb33-521" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> springFallBPs <span class="sc">%&gt;%</span></span>
-<span id="cb33-522"><a href="#cb33-522" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb33-523"><a href="#cb33-523" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> finalSpringBP, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-524"><a href="#cb33-524" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-525"><a href="#cb33-525" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb33-526"><a href="#cb33-526" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Spring breakpoint (day of year)"</span>) <span class="sc">+</span></span>
-<span id="cb33-527"><a href="#cb33-527" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
-<span id="cb33-528"><a href="#cb33-528" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb33-529"><a href="#cb33-529" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> springFallBPs <span class="sc">%&gt;%</span></span>
-<span id="cb33-530"><a href="#cb33-530" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb33-531"><a href="#cb33-531" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> finalFallBP, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-532"><a href="#cb33-532" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-533"><a href="#cb33-533" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb33-534"><a href="#cb33-534" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Fall breakpoint (day of year)"</span>) <span class="sc">+</span></span>
-<span id="cb33-535"><a href="#cb33-535" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
-<span id="cb33-536"><a href="#cb33-536" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-537"><a href="#cb33-537" aria-hidden="true" tabindex="-1"></a>ggpubr<span class="sc">::</span><span class="fu">ggarrange</span>(p1, p2, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">common.legend =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb33-538"><a href="#cb33-538" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-539"><a href="#cb33-539" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-540"><a href="#cb33-540" aria-hidden="true" tabindex="-1"></a>Trends in length of synchronized period</span>
-<span id="cb33-543"><a href="#cb33-543" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-544"><a href="#cb33-544" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="sc">%&gt;%</span></span>
-<span id="cb33-545"><a href="#cb33-545" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb33-546"><a href="#cb33-546" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">SynchLen =</span> finalFallBP <span class="sc">-</span> finalSpringBP) <span class="sc">%&gt;%</span></span>
-<span id="cb33-547"><a href="#cb33-547" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> SynchLen, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-548"><a href="#cb33-548" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
-<span id="cb33-549"><a href="#cb33-549" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb33-550"><a href="#cb33-550" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Length of synchronized period (days)"</span>) <span class="sc">+</span></span>
-<span id="cb33-551"><a href="#cb33-551" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
-<span id="cb33-552"><a href="#cb33-552" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-553"><a href="#cb33-553" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-554"><a href="#cb33-554" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-445"><a href="#cb33-445" aria-hidden="true" tabindex="-1"></a><span class="fu">## Plot breakpoints</span></span>
+<span id="cb33-446"><a href="#cb33-446" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-447"><a href="#cb33-447" aria-hidden="true" tabindex="-1"></a>Show examples of the breakpoint calculations for one stream in each basin. Compare to Figure 3 in Letcher et al. (2016). *Note*, this doesn't really work in the Donner-Blitzen, where temperature data during winter/the shoulder seasons is entirely unavailable...nothing to inform breakpoint estimatation outside of the middle 150 days of year.</span>
+<span id="cb33-448"><a href="#cb33-448" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-449"><a href="#cb33-449" aria-hidden="true" tabindex="-1"></a>Create plotting function</span>
+<span id="cb33-452"><a href="#cb33-452" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-453"><a href="#cb33-453" aria-hidden="true" tabindex="-1"></a>indexfun <span class="ot">&lt;-</span> <span class="cf">function</span>(site) {</span>
+<span id="cb33-454"><a href="#cb33-454" aria-hidden="true" tabindex="-1"></a><span class="co"># thermographs</span></span>
+<span id="cb33-455"><a href="#cb33-455" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb33-456"><a href="#cb33-456" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span></span>
+<span id="cb33-457"><a href="#cb33-457" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> air_temp_mean), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb33-458"><a href="#cb33-458" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalFallBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
+<span id="cb33-459"><a href="#cb33-459" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalSpringBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
+<span id="cb33-460"><a href="#cb33-460" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>year, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb33-461"><a href="#cb33-461" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span> </span>
+<span id="cb33-462"><a href="#cb33-462" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Temperature (deg. C)"</span>) </span>
+<span id="cb33-463"><a href="#cb33-463" aria-hidden="true" tabindex="-1"></a><span class="co"># temperature indices</span></span>
+<span id="cb33-464"><a href="#cb33-464" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb33-465"><a href="#cb33-465" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> dat_index <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> index)) <span class="sc">+</span></span>
+<span id="cb33-466"><a href="#cb33-466" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="fu">c</span>(<span class="dv">125</span>,<span class="dv">275</span>), <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb33-467"><a href="#cb33-467" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalFallBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
+<span id="cb33-468"><a href="#cb33-468" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">xintercept =</span> finalSpringBP), <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
+<span id="cb33-469"><a href="#cb33-469" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">yintercept =</span> quantileLo), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb33-470"><a href="#cb33-470" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">data =</span> breaks <span class="sc">%&gt;%</span> <span class="fu">filter</span>(site_name <span class="sc">==</span> site), <span class="fu">aes</span>(<span class="at">yintercept =</span> quantileHi), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb33-471"><a href="#cb33-471" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>year, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb33-472"><a href="#cb33-472" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span> </span>
+<span id="cb33-473"><a href="#cb33-473" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylim</span>(<span class="sc">-</span><span class="dv">20</span>,<span class="dv">20</span>) <span class="sc">+</span></span>
+<span id="cb33-474"><a href="#cb33-474" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Temperature index"</span>) </span>
+<span id="cb33-475"><a href="#cb33-475" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange figures</span></span>
+<span id="cb33-476"><a href="#cb33-476" aria-hidden="true" tabindex="-1"></a><span class="fu">return</span>(<span class="fu">ggarrange</span>(p1, p2, <span class="at">ncol =</span> <span class="dv">1</span>))</span>
+<span id="cb33-477"><a href="#cb33-477" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb33-478"><a href="#cb33-478" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-479"><a href="#cb33-479" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-480"><a href="#cb33-480" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-481"><a href="#cb33-481" aria-hidden="true" tabindex="-1"></a>::: panel-tabset</span>
+<span id="cb33-482"><a href="#cb33-482" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-483"><a href="#cb33-483" aria-hidden="true" tabindex="-1"></a><span class="fu">### Avery Brook, West Brook</span></span>
+<span id="cb33-484"><a href="#cb33-484" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-485"><a href="#cb33-485" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Avery Brook")</span></span>
+<span id="cb33-486"><a href="#cb33-486" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-487"><a href="#cb33-487" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-488"><a href="#cb33-488" aria-hidden="true" tabindex="-1"></a><span class="fu">### Paine Run 01</span></span>
+<span id="cb33-489"><a href="#cb33-489" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-490"><a href="#cb33-490" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Paine Run 01")</span></span>
+<span id="cb33-491"><a href="#cb33-491" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-492"><a href="#cb33-492" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-493"><a href="#cb33-493" aria-hidden="true" tabindex="-1"></a><span class="fu">### Staunton River 02</span></span>
+<span id="cb33-494"><a href="#cb33-494" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-495"><a href="#cb33-495" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Staunton River 02")</span></span>
+<span id="cb33-496"><a href="#cb33-496" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-497"><a href="#cb33-497" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-498"><a href="#cb33-498" aria-hidden="true" tabindex="-1"></a><span class="fu">### McGee Creek Trib, Flathead</span></span>
+<span id="cb33-499"><a href="#cb33-499" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-500"><a href="#cb33-500" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("McGeeCreekTrib")</span></span>
+<span id="cb33-501"><a href="#cb33-501" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-502"><a href="#cb33-502" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-503"><a href="#cb33-503" aria-hidden="true" tabindex="-1"></a><span class="fu">### Dugout Creek, Yellowstone</span></span>
+<span id="cb33-504"><a href="#cb33-504" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-505"><a href="#cb33-505" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Dugout Creek NWIS")</span></span>
+<span id="cb33-506"><a href="#cb33-506" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-507"><a href="#cb33-507" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-508"><a href="#cb33-508" aria-hidden="true" tabindex="-1"></a><span class="fu">### Leidy Creek, Snake</span></span>
+<span id="cb33-509"><a href="#cb33-509" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-510"><a href="#cb33-510" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Leidy Creek Mouth NWIS")</span></span>
+<span id="cb33-511"><a href="#cb33-511" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-512"><a href="#cb33-512" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-513"><a href="#cb33-513" aria-hidden="true" tabindex="-1"></a><span class="fu">### Little Blitzen River, Donner-Blitzen</span></span>
+<span id="cb33-514"><a href="#cb33-514" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=9, fig.height=5}</span></span>
+<span id="cb33-515"><a href="#cb33-515" aria-hidden="true" tabindex="-1"></a><span class="in">indexfun("Little Blizten River NWIS")</span></span>
+<span id="cb33-516"><a href="#cb33-516" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-517"><a href="#cb33-517" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-518"><a href="#cb33-518" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb33-519"><a href="#cb33-519" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-520"><a href="#cb33-520" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-521"><a href="#cb33-521" aria-hidden="true" tabindex="-1"></a>Plot trends in spring and fall breakpoints (only those we directly calculated). We have a ~limited number of years and so this isn't all that informative</span>
+<span id="cb33-524"><a href="#cb33-524" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-525"><a href="#cb33-525" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> springFallBPs <span class="sc">%&gt;%</span></span>
+<span id="cb33-526"><a href="#cb33-526" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb33-527"><a href="#cb33-527" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> finalSpringBP, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-528"><a href="#cb33-528" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-529"><a href="#cb33-529" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb33-530"><a href="#cb33-530" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Spring breakpoint (day of year)"</span>) <span class="sc">+</span></span>
+<span id="cb33-531"><a href="#cb33-531" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb33-532"><a href="#cb33-532" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb33-533"><a href="#cb33-533" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> springFallBPs <span class="sc">%&gt;%</span></span>
+<span id="cb33-534"><a href="#cb33-534" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb33-535"><a href="#cb33-535" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> finalFallBP, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-536"><a href="#cb33-536" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-537"><a href="#cb33-537" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb33-538"><a href="#cb33-538" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Fall breakpoint (day of year)"</span>) <span class="sc">+</span></span>
+<span id="cb33-539"><a href="#cb33-539" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb33-540"><a href="#cb33-540" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-541"><a href="#cb33-541" aria-hidden="true" tabindex="-1"></a>ggpubr<span class="sc">::</span><span class="fu">ggarrange</span>(p1, p2, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">common.legend =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb33-542"><a href="#cb33-542" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-543"><a href="#cb33-543" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-544"><a href="#cb33-544" aria-hidden="true" tabindex="-1"></a>Trends in length of synchronized period</span>
+<span id="cb33-547"><a href="#cb33-547" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-548"><a href="#cb33-548" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="sc">%&gt;%</span></span>
+<span id="cb33-549"><a href="#cb33-549" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sourceSpringBP <span class="sc">==</span> <span class="st">"directly calculated"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb33-550"><a href="#cb33-550" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">SynchLen =</span> finalFallBP <span class="sc">-</span> finalSpringBP) <span class="sc">%&gt;%</span></span>
+<span id="cb33-551"><a href="#cb33-551" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> SynchLen, <span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-552"><a href="#cb33-552" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color =</span> basin)) <span class="sc">+</span></span>
+<span id="cb33-553"><a href="#cb33-553" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb33-554"><a href="#cb33-554" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Length of synchronized period (days)"</span>) <span class="sc">+</span></span>
+<span id="cb33-555"><a href="#cb33-555" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">panel.grid =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb33-556"><a href="#cb33-556" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-557"><a href="#cb33-557" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-558"><a href="#cb33-558" aria-hidden="true" tabindex="-1"></a></span>
 </code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

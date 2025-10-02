@@ -1,165 +1,115 @@
 ---
-title: "Explore Data"
-format: html
+title: "Format Data"
 ---
 
-**Purpose:** view EcoDrought stream temperature and flow data and download Daymet climate data (modeled air temperature).
+**Purpose:** Format data for modeling in JAGS
 
 ```{r include=FALSE}
+library(ggplot2)
 library(tidyverse)
-library(dygraphs)
-library(mapview)
-library(DT)
-library(sf)
-library(daymetr)
-library(egg)
-library(fasstr)
+#library(nlme)
+# library(devtools)
+# #install_github("conteStreamTemperature", username = "Conte-Ecology")
+# library(conteStreamTemperature)
+
 ```
 
-## Site information
+## Base data
 
+Temperature and flow data
 ```{r}
-siteinfo <- read_csv("data/EcoDrought_SiteInformation.csv")
-datatable(siteinfo)
-siteinfo_sp <- st_as_sf(siteinfo, coords = c("long", "lat"), crs = 4326)
-mapview(siteinfo_sp, zcol = "designation")
-```
-
-
-## Flow and temp data
-
-Load data
-```{r}
-dat <- read_csv("data/EcoDrought_FlowTempData_DailyWeekly.csv")
+dat <- read_csv("data/EcoDrought_FlowTempData_DailyWeekly_clean.csv")
 dat
 ```
 
-Unique basins
+Fix basins and trim to focal variables. Drop Piney River (no flow data)
 ```{r}
-unique(dat$basin)
+mysitebasins <- dat %>% 
+  group_by(site_name) %>% 
+  summarize(basin = unique(basin),
+            lat = unique(lat), 
+            long = unique(long), 
+            elev_ft = unique(elev_ft),
+            area_sqkm = unique(area_sqkm)) %>% 
+  filter(!is.na(basin), !is.na(lat), !is.na(long), !is.na(elev_ft), !is.na(area_sqkm)) %>% 
+  mutate(basin = recode(basin, "Shields River" = "Yellowstone"))
+
+dat <- dat %>% 
+  select(-c(basin, lat, long, elev_ft, area_sqkm)) %>% 
+  left_join(mysitebasins) %>% 
+  select(site_name, basin, lat, long, elev_ft, area_sqkm, date, yday, year, siteYear, 
+         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2) %>%
+  filter(basin != "Piney River")
+
+dat
 ```
 
-
-### View daily temp
-
-::: panel-tabset
-
-#### West Brook
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "West Brook") %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Paine Run
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Paine Run", date >= as_date("2018-01-01")) %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Staunton River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Staunton River", date >= as_date("2018-01-01")) %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Flathead River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Flathead") %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Yellowstone River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Shields River") %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Snake River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Snake River") %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-#### Donner und Blitzen River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Donner Blitzen") %>% select(date, site_name, tempc_mean) %>% spread(key = site_name, value = tempc_mean) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "Daily mean temperature (deg. C)")
-```
-
-:::
-
-
-### View daily flow
-
-::: panel-tabset
-
-#### West Brook
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "West Brook") %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Paine Run
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Paine Run", date >= as_date("2018-01-01")) %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Staunton River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Staunton River", date >= as_date("2018-01-01")) %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Flathead River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Flathead") %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Yellowstone River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Shields River") %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Snake River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Snake River") %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-#### Donner und Blitzen River
-```{r, echo=FALSE}
-dat %>% filter(designation %in% c("little", "medium"), basin == "Donner Blitzen") %>% mutate(logYield = log(Yield_filled_mm)) %>% select(date, site_name, logYield) %>% spread(key = site_name, value = logYield) %>% dygraph() %>% dyRangeSelector() %>% dyAxis("y", label = "ln(Specific discharge, mm)")
-```
-
-:::
-
-
-
-## Daymet data
-
-Trim siteinfo to sites with temp/flow data
+Calculate lagged air temperature variables
 ```{r}
-siteinfo_sub <- siteinfo %>% filter(site_name %in% unique(dat$site_name))
+# ensure proper ordering
+dat <- dat[order(dat$site_name, dat$year, dat$yday),]
+
+# calculate lagged air temp
+dat <- dat %>%
+  group_by(site_name) %>%
+  mutate(air_temp_mean_lag1 = lag(air_temp_mean, 1),
+         air_temp_mean_lag2 = lag(air_temp_mean, 2)) %>%
+  ungroup()
 ```
 
-Download Daymet daily air temperature data for each site (point locations)
-```{r eval=FALSE}
-climlist <- vector("list", length = dim(siteinfo_sub)[1])
-for (i in 1:dim(siteinfo_sub)[1]) {
-  clim <- download_daymet(site = siteinfo_sub$site_name[i], lat = siteinfo_sub$lat[i], lon = siteinfo_sub$long[i], start = 2010, end = 2024, internal = T)
-  climlist[[i]] <- tibble(clim$data) %>% 
-    mutate(air_temp_mean = (tmax..deg.c. + tmin..deg.c.)/2, 
-           date = as.Date(paste(year, yday, sep = "-"), "%Y-%j"),
-           site_name = siteinfo_sub$site_name[i]) %>%
-    select(12,2,11,10,4,6,3,5) %>% rename(precip_mmday = 5, swe_kgm2 = 6, daylength_sec = 7, shortrad_wm2 = 8)
-  print(i)
-}
-climdf <- do.call(rbind, climlist)
-write_csv(climdf, "data/Daymet_daily.csv")
-```
-
-Re-load Daymet climate data
+Breakpoints
 ```{r}
-climdf <- read_csv("data/Daymet_daily.csv")
+springFallBPs <- read_csv("data/breakpoints.csv")
+springFallBPs
 ```
 
-Plot example Daymet time series data (2020-2025, Avery Brook, MA)
-```{r fig.width=7, fig.height=9}
-ggarrange(climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = air_temp_mean)) + geom_line(),
-          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = precip_mmday)) + geom_line(),
-          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = swe_kgm2)) + geom_line(),
-          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = daylength_sec)) + geom_line(),
-          climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = shortrad_wm2)) + geom_line(),
-          ncol = 1)
+Join temp/flow data with breakpoints and filter to days within synchronized period. 
+```{r}
+dat_bp <- dat %>% 
+  left_join(springFallBPs) %>%
+  filter(yday >= finalSpringBP & yday <= finalFallBP)
+dat_bp
 ```
+
+Plot temp data with LOESS to show seasonal hysteresis
+```{r}
+dat_bp %>% 
+  ggplot(aes(x = yday, y = tempc_mean)) + 
+  geom_point(size = 0.1) +
+  facet_wrap(~basin) +
+  geom_smooth(color = "red", se = FALSE) +
+  theme_bw() #+ theme(panel.grid = element_blank())
+```
+
+Create dummy site and basin varibles (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows
+```{r}
+# arrange
+dat_bp <- dat_bp %>% arrange(basin, site_name, year, yday)
+
+# create tibbles of site and basin numeric codes
+sitecodes <- tibble(site_name = unique(dat_bp$site_name), site_code = 1:length(unique(dat_bp$site_name)))
+basincodes <- tibble(basin = unique(dat_bp$basin), basin_code = 1:length(unique(dat_bp$basin)))
+
+# join to data
+dat_bp <- dat_bp %>%
+  left_join(sitecodes) %>%
+  left_join(basincodes) %>%
+  mutate(rowNum = 1:nrow(.))
+```
+
+
+## Landscape covariates
+
+*To do -- derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percept forest cover, etc.)*
+
+## Check correlations
+
+
+## Write to file
+
+Write formatted data to file
+```{r}
+write_csv(dat_bp, "data/EcoDrought_FlowTempData_formatted.csv")
+```
+
 
