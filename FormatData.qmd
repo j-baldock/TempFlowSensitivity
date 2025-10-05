@@ -22,7 +22,7 @@ dat <- read_csv("data/EcoDrought_FlowTempData_DailyWeekly_clean.csv")
 dat
 ```
 
-Fix basins and trim to focal variables. Drop Piney River (no flow data)
+Fix basins and trim to focal variables.
 ```{r}
 mysitebasins <- dat %>% 
   group_by(site_name) %>% 
@@ -30,16 +30,15 @@ mysitebasins <- dat %>%
             lat = unique(lat), 
             long = unique(long), 
             elev_ft = unique(elev_ft),
-            area_sqkm = unique(area_sqkm)) %>% 
-  filter(!is.na(basin), !is.na(lat), !is.na(long), !is.na(elev_ft), !is.na(area_sqkm)) %>% 
+            area_sqmi = unique(area_sqmi)) %>% 
+  filter(!is.na(basin), !is.na(lat), !is.na(long), !is.na(elev_ft), !is.na(area_sqmi)) %>% 
   mutate(basin = recode(basin, "Shields River" = "Yellowstone"))
 
 dat <- dat %>% 
-  select(-c(basin, lat, long, elev_ft, area_sqkm)) %>% 
+  select(-c(basin, lat, long, elev_ft, area_sqmi)) %>% 
   left_join(mysitebasins) %>% 
-  select(site_name, basin, lat, long, elev_ft, area_sqkm, date, yday, year, siteYear, 
-         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2) %>%
-  filter(basin != "Piney River")
+  select(site_name, basin, lat, long, elev_ft, area_sqmi, date, yday, year, siteYear, 
+         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2)
 
 dat
 ```
@@ -59,7 +58,8 @@ dat <- dat %>%
 
 Breakpoints
 ```{r}
-springFallBPs <- read_csv("data/breakpoints.csv")
+springFallBPs <- read_csv("data/breakpoints.csv") %>% 
+  mutate(basin = recode(basin, "Shields River" = "Yellowstone"))
 springFallBPs
 ```
 
@@ -71,12 +71,25 @@ dat_bp <- dat %>%
 dat_bp
 ```
 
-Plot temp data with LOESS to show seasonal hysteresis
+Show the distribution of the number of temperature observations (non-NA) per site-year
 ```{r}
+obspersy <- dat_bp %>% group_by(siteYear) %>% summarize(numobs = sum(!is.na(tempc_mean))) %>% ungroup()
+obspersy %>% ggplot() + geom_histogram(aes(x = numobs)) + theme_bw()
+```
+
+Drop siteYears with less than 10 days of temperature observations
+```{r}
+drops <- obspersy %>% filter(numobs < 10)
+dat_bp <- dat_bp %>% filter(!siteYear %in% drops$siteYear)
+```
+
+
+Plot temp data with LOESS to show seasonal hysteresis
+```{r fig.width=7, fig.height=7}
 dat_bp %>% 
   ggplot(aes(x = yday, y = tempc_mean)) + 
   geom_point(size = 0.1) +
-  facet_wrap(~basin) +
+  facet_wrap(~factor(basin, levels = c("West Brook", "Staunton River", "Paine Run", "Flathead", "Yellowstone", "Snake River", "Donner Blitzen"))) +
   geom_smooth(color = "red", se = FALSE) +
   theme_bw() #+ theme(panel.grid = element_blank())
 ```

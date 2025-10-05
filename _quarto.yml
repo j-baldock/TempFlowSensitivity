@@ -21,6 +21,7 @@ book:
     - DataViz.qmd
     - Breakpoints.qmd
     - FormatData.qmd
+    - ModelTemp.qmd
 
 format:
   html:

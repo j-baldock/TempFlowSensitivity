@@ -33,6 +33,44 @@ dat <- read_csv("data/EcoDrought_FlowTempData_DailyWeekly.csv")
 dat
 ```
 
+Adjust/filter sites
+
+* Combine co-located sites that do not overlap in time. 
+* Drop co-located sites that do overlap in time.
+* Drop certain big Gs. *NOTE: only drop big Gs on very big rivers that are clearly outside of our domain for temp/flow modeling (NF Flathead, Yellowstone, Shields, South River Conway, etc), but retain those on smaller rivers (Pacific Creek, Donner Blitzen)*
+
+```{r}
+dat <- dat %>% 
+  # combine sites co-located in space, but not in time (same location but different names depending on year)
+  mutate(site_name = dplyr::recode(site_name, 
+                                   "Leidy Creek Mouth NWIS" = "Leidy Creek Mouth", 
+                                   "SF Spread Creek Lower NWIS" = "SF Spread Creek Lower", 
+                                   "Dugout Creek NWIS" = "Dugout Creek", 
+                                   "Shields River ab Smith NWIS" = "Shields River Valley Ranch")) %>%
+  # drop sites co-located in space and in time (entirely redundant)
+  filter(!site_name %in% c("Avery Brook NWIS", "West Brook 0", "BigCreekMiddle")) %>%
+  # drop Piney River (no within basin replication)
+  filter(basin != "Piney River") %>%
+  # drop Wounded Buck (no temperature data)
+  filter(basin != "Piney River") %>%
+  # drop some big Gs
+  filter(!site_name %in% c("South River Conway NWIS", 
+                           "North Fork Flathead River NWIS",        
+                           "Shields River nr Livingston NWIS"   
+                           #"Donner Blitzen River nr Frenchglen NWIS",    
+                           #"Pacific Creek at Moran NWIS", 
+                           )) %>%                                             
+  group_by(site_name, basin, date) %>%
+  summarize(flow_mean = mean(flow_mean),
+            tempc_mean = mean(tempc_mean),
+            tempc_min = mean(tempc_min),
+            tempc_max = mean(tempc_max),
+            Yield_mm = mean(Yield_mm)) %>%
+  ungroup() %>%
+  left_join(siteinfo %>% select(site_name, lat, long, area_sqmi, elev_ft))
+```
+
+
 Cut out all days with missing temp records
 ```{r}
 dat <- dat %>% filter(!is.na(tempc_mean))
@@ -406,9 +444,13 @@ Write to file
 # Index the columns to save
 springFallBPs <- breaks[,c('basin', 'site_name', 'year', 'finalSpringBP', 'sourceSpringBP', 'finalFallBP', 'sourceFallBP','quantileLo','quantileHi')]
 
-# fix erroneous Rock Creek, 2022 spring breakpoint
-springFallBPs <- springFallBPs %>% mutate(finalSpringBP = ifelse(site_name == "Rock Creek", 111, finalSpringBP),
-                                          sourceSpringBP = ifelse(site_name == "Rock Creek", "basin mean", sourceSpringBP))
+# fix erroneous Rock Creek, Lodgepole Creek spring breakpoint
+# springFallBPs <- read_csv("data/breakpoints.csv")
+springFallBPs <- springFallBPs %>% 
+  mutate(finalSpringBP = ifelse(site_name == "Rock Creek", 111, finalSpringBP),
+         sourceSpringBP = ifelse(site_name == "Rock Creek", "basin mean", sourceSpringBP)) %>% 
+  mutate(finalSpringBP = ifelse(site_name == "Lodgepole Creek", 99, finalSpringBP),
+         sourceSpringBP = ifelse(site_name == "Lodgepole Creek", "basin mean", sourceSpringBP))
 
 # Save the output
 write_csv(springFallBPs, "data/breakpoints.csv")
@@ -473,12 +515,12 @@ indexfun("McGeeCreekTrib")
 
 ### Dugout Creek, Yellowstone
 ```{r fig.width=9, fig.height=5}
-indexfun("Dugout Creek NWIS")
+indexfun("Dugout Creek")
 ```
 
 ### Leidy Creek, Snake
 ```{r fig.width=9, fig.height=5}
-indexfun("Leidy Creek Mouth NWIS")
+indexfun("Leidy Creek Mouth")
 ```
 
 ### Little Blitzen River, Donner-Blitzen
