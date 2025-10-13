@@ -1,0 +1,1592 @@
+---
+title: "ModelTemp"
+---
+
+**Purpose:**
+
+```{r include=FALSE}
+library(tidyverse)
+library(R2jags)
+library(MCMCvis)
+library(loo)
+library(HDInterval)
+library(scales)
+library(ggmcmc)
+library(GGally)
+```
+
+## Repeat Letcher et al.
+
+### Load data
+
+Load fully formatted data used in Letcher et al. (2016) PeerJ
+```{r}
+load("data/tempDataSyncSUsed.RData")
+head(tempDataSyncS)
+unique(tempDataSyncS$river)
+
+tempDataSyncS <- tempDataSyncS %>% mutate(siteYear = paste(site, year, sep = "_"))
+```
+
+Any missing data?
+```{r}
+any(is.na(tempDataSyncS$airTemp))
+any(is.na(tempDataSyncS$airTempLagged1))
+any(is.na(tempDataSyncS$airTempLagged2))
+any(is.na(tempDataSyncS$flowLS))
+```
+
+Visualize data. Note that air temp is standardized. By site? Or among sites?
+
+::: panel-tabset
+
+#### Air temp
+```{r}
+ggplot(tempDataSyncS,aes(dOY,airTemp))+
+  geom_line(aes(color=factor(year))) +
+  facet_grid(year~riverOrdered)
+```
+
+#### Water temp
+```{r}
+ggplot(tempDataSyncS,aes(dOY,temp))+
+  geom_line(aes(color=factor(year)))+
+  facet_grid(year~riverOrdered)
+```
+
+#### Flow (log and std)
+```{r}
+ggplot(tempDataSyncS,aes(dOY,flowLS))+
+  geom_line(aes(color=factor(year)))+
+  facet_grid(year~riverOrdered)
+```
+
+#### Tw ~ Ta + F
+```{r}
+tempDataSyncS %>% ggplot(aes(x = airTemp, y = temp, color = flowLS)) + geom_point(size = 0.2) + facet_wrap(~riverOrdered) + theme_bw()
+```
+
+#### Ta ~ F
+```{r}
+tempDataSyncS %>% ggplot(aes(x = airTemp, y = flowLS, colour = temp)) + geom_point(size = 0.2) + facet_wrap(~riverOrdered) + theme_bw() + ggpubr::stat_cor()
+```
+
+:::
+
+
+### Specify model
+
+Straight from Letcher et al (2016)
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[river[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+      }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nRiver){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
+    }
+    ar1Mean ~ dunif( -1,1 ) 
+    ar1SD ~ dunif( 0, 2 )
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:K.0) {
+      B.0[k] ~ dnorm(0, 0.001)
+      }
+      
+      
+    # YEAR EFFECTS
+    # Priors for random effects of year
+    for (t in 1:Ti) { # Ti years
+      B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+      }
+      
+    mu.year[1] <- 0
+    
+    for (l in 2:L) {
+      mu.year[l] ~ dnorm(0, 0.0001)
+      }
+      
+    # Prior on multivariate normal std deviation
+    tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    df.year <- L + 1
+    sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    for (l in 1:L) {
+      for (l.prime in 1:L) {
+        rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+        }
+      sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 2:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    }", file = "DailyTempModelJAGS_Letcher.txt")
+```
+
+
+### Organize objects
+
+Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
+```{r}
+# row indices for first observation in each site-year
+firstObsRows <- unlist(tempDataSyncS %>% 
+  group_by(siteYear) %>%
+  summarize(index = rowNum[min(which(!is.na(temp)))]) %>%
+  ungroup() %>% 
+  select(index))
+nFirstObsRows <- length(firstObsRows)
+
+# does the number of first observations match the number of site years?
+nFirstObsRows == length(unique(tempDataSyncS$siteYear))
+```
+
+Get row indices for all other observations
+```{r}
+evalRows <- unlist(tempDataSyncS %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
+nEvalRows <- length(evalRows)
+```
+
+Fixed and random effect data
+```{r}
+data.fixed <- data.frame(intercept = 1
+                         ,airTemp = tempDataSyncS$airTemp 
+                         ,airTempLag1 = tempDataSyncS$airTempLagged1
+                         ,airTempLag2 = tempDataSyncS$airTempLagged2
+                         
+                         ,flow =  tempDataSyncS$flowLS
+                         
+                         ,airFlow = tempDataSyncS$airTemp * tempDataSyncS$flowLS
+#                         ,air1Flow = tempDataSyncS$airTempLagged1 * tempDataSyncS$flowLS
+#                         ,air2Flow = tempDataSyncS$airTempLagged2 * tempDataSyncS$flowLS
+                         
+                         #main river effects
+                         ,river1 = tempDataSyncS$river1
+                         ,river2 = tempDataSyncS$river2
+                         ,river3 = tempDataSyncS$river3
+                         
+                         #river interaction with air temp
+                         ,river1Air = tempDataSyncS$river1 * tempDataSyncS$airTemp
+                         ,river2Air = tempDataSyncS$river2 * tempDataSyncS$airTemp
+                         ,river3Air = tempDataSyncS$river3 * tempDataSyncS$airTemp
+                         
+                          ) 
+
+data.random.years <- data.frame(intercept.year = 1, 
+                     dOY  = tempDataSyncS$dOY, 
+                     dOY2 = tempDataSyncS$dOY^2,
+                     dOY3 = tempDataSyncS$dOY^3
+                     )
+```
+
+Misc. objects
+```{r}
+Ti <- length(unique(tempDataSyncS$year))
+L <- dim(data.random.years)[2]
+W.year <- diag(L)
+```
+
+Combine data in list
+```{r}
+# combine data in a list
+jags.data <- list("temp" = tempDataSyncS$temp,
+                  "nFirstObsRows" = nFirstObsRows,
+                  "firstObsRows" = firstObsRows,
+                  "nEvalRows" = nEvalRows,
+                  "evalRows" = evalRows,
+                  "X.0" = data.fixed,
+                  "X.year" = data.random.years,
+                  "K.0" = dim(data.fixed)[2],
+                  "nRiver" = length(unique(tempDataSyncS$site)),
+                  "Ti" = Ti,
+                  "L" = L,
+                  "W.year" = W.year,
+                  "n" = dim(tempDataSyncS)[1],
+                  "year" = as.factor(tempDataSyncS$year),
+                  "river" = as.factor(tempDataSyncS$riverOrdered)
+                  )
+```
+
+Parameters to monitor
+```{r}
+jags.params <- c("residuals",
+            "deviance",
+ #           "pD",
+            "sigma",
+            "B.0",
+            "B.year",
+            "rho.B.year",
+            "mu.year",
+            "sigma.b.year",
+            "stream.mu",
+            "ar1" ,
+            "ar1Mean",
+            "ar1SD",
+            "temp"
+            )
+```
+
+
+### Fit model
+
+```{r eval=FALSE}
+fit0 <- jags(data = jags.data, inits = NULL, parameters.to.save = jags.params, model.file = "DailyTempModelJAGS_Letcher.txt",
+            n.chains = 3, n.thin = 5, n.burnin = 500, n.iter = 2500, DIC = TRUE)
+```
+
+Save to file
+```{r eval=FALSE}
+saveRDS(fit0, "Model objects/LetcherTempModel_PeerJ2016.RDS")
+```
+
+Read in fitted model object
+```{r}
+fit0 <- readRDS("Model objects/LetcherTempModel_PeerJ2016.RDS")
+```
+
+Get MCMC samples and summary
+```{r}
+top_mod <- fit0
+# generate MCMC samples and store as an array
+modelout <- top_mod$BUGSoutput
+McmcList <- vector("list", length = dim(modelout$sims.array)[2])
+for(i in 1:length(McmcList)) { McmcList[[i]] = as.mcmc(modelout$sims.array[,i,]) }
+# rbind MCMC samples from 10 chains 
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]])
+param.summary <- modelout$summary
+head(param.summary)
+```
+
+Any problematic R-hat values (>1.05)?
+```{r}
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.05]
+```
+
+View traceplots
+```{r}
+MCMCtrace(top_mod, ind = TRUE, 
+          params = c("B.0", "mu.year", 
+                     "ar1", 
+                     "sigma"), pdf = FALSE)
+```
+
+Convert to ggs object
+```{r}
+ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
+head(ggfit)
+```
+
+### Goodness of fit
+
+Format observed and predicted values
+```{r}
+Mcmcdat <- as_tibble(Mcmcdat)
+
+# subset expected and observed MCMC samples
+ppdat_exp <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "stream.mu[")])
+ppdat_obs <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "temp[")])
+```
+
+Bayesian p-value
+```{r}
+sum(ppdat_exp > ppdat_obs) / (dim(ppdat_obs)[1]*dim(ppdat_obs)[2])
+```
+
+PP-check
+```{r}
+ppdat_obs_mean <- apply(ppdat_obs, 2, mean)
+ppdat_exp_mean <- apply(ppdat_exp, 2, mean)
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted (mean)")
+```
+
+
+### Plot model output
+
+*Output is identical to Letcher et al. (2016), as expected*
+
+#### Dot plots
+
+::: panel-tabset
+
+##### Intercept
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter == "B.0[1]"), sort = FALSE) + scale_y_discrete(labels = "Intercept") + theme_bw()
+```
+
+##### Betas
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep("B.0", unique(ggfit$Parameter), value = TRUE)[-1]) %>%
+                  mutate(Parameter = factor(Parameter, levels = c("B.0[2]", "B.0[3]", "B.0[4]", "B.0[5]", "B.0[6]", 
+                                                                  "B.0[7]", "B.0[8]", "B.0[9]", "B.0[10]", "B.0[11]", "B.0[12]"))),
+                sort = FALSE) + scale_y_discrete(labels = rev(c("T", "T(d-1)", "T(d-2)", "F", "T*F", "OL", "OS", "IS", "OL*T", "OS*T", "IS*T")), limits = rev) + theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Autoregressive terms
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep("ar1", unique(ggfit$Parameter), value = TRUE)) %>%
+                  mutate(Parameter = factor(Parameter, levels = c("ar1Mean", "ar1SD", "ar1[1]", "ar1[2]", "ar1[3]", "ar1[4]"))),
+                sort = FALSE) + scale_y_discrete(labels = rev(c("ar1Mean", "ar1SD", "ar1[WB]", "ar1[OL]", "ar1[OS]", "ar1[IL]")), limits = rev) + theme_bw() + xlim(0,1)
+```
+
+##### Within year trends
+```{r}
+ggs_caterpillar(ggfit, family = "mu.year", sort = FALSE) + scale_y_discrete(labels = rev(c("Intercept", "Linear", "Quadratic", "Cubic")), limits = rev) + theme_bw()
+```
+
+:::
+
+
+Post-hoc site specific intercepts
+```{r}
+ggfit %>% 
+  filter(Parameter %in% c("B.0[1]", "B.0[7]", "B.0[8]", "B.0[9]")) %>% 
+  spread(key = Parameter, value = value) %>%
+  rename(int_WB = 3, os_OL = 4, os_OS = 5, os_IS = 6) %>%
+  mutate(int_OL = int_WB + os_OL,
+         int_OS = int_WB + os_OS,
+         int_IS = int_WB + os_IS) %>%
+  select(-c(os_OL, os_OS, os_IS)) %>%
+  gather(int_WB:int_IS, key = "Parameter", value = "value") %>%
+  mutate(Parameter = factor(Parameter, levels = c("int_WB", "int_OL", "int_OS", "int_IS"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(limits = rev) + 
+  ylab("Intercepts") +
+  theme_bw()
+```
+
+Post-hoc site specific slopes
+```{r}
+ggfit %>% 
+  filter(Parameter %in% c("B.0[2]", "B.0[10]", "B.0[11]", "B.0[12]")) %>% 
+  spread(key = Parameter, value = value) %>%
+  rename(slo_WB = 6, os_OL = 3, os_OS = 4, os_IS = 5) %>%
+  mutate(slo_OL = slo_WB + os_OL,
+         slo_OS = slo_WB + os_OS,
+         slo_IS = slo_WB + os_IS) %>%
+  select(-c(os_OL, os_OS, os_IS)) %>%
+  gather(slo_WB:slo_IS, key = "Parameter", value = "value") %>%
+  mutate(Parameter = factor(Parameter, levels = c("slo_WB", "slo_OL", "slo_OS", "slo_IS"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(limits = rev) + 
+  ylab("Slopes, temperature effect") +
+  theme_bw()
+```
+
+
+
+#### Marginal efffects
+
+Marginal effects of air temperature x flow interaction, not accounting for lagged temperature effects, temporal autocorrelation, 
+
+::: panel-tabset
+
+##### West Brook
+```{r fig.width=9, fig.height=4}
+# set up
+np <- 100
+myriv <- "WEST BROOK"
+x_temp <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+x_flow <- seq(from = min(tempDataSyncS$flowLS[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$flowLS[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+pred_df <- expand_grid(x_temp, x_flow)
+
+# predict from model
+pred_df$pred <- param.summary["B.0[1]",1] + param.summary["B.0[2]",1]*pred_df$x_temp + param.summary["B.0[5]",1]*pred_df$x_flow + param.summary["B.0[6]",1]*pred_df$x_temp*pred_df$x_flow
+
+# lines 
+p1 <- ggplot(pred_df, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+  geom_line() +
+  scale_color_distiller(palette = "BrBG", direction = +1) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature") + ylim(6.5,20)
+# heatmap
+p2 <- ggplot(pred_df, aes(x = x_temp, y = x_flow)) +
+  geom_tile(aes(fill = pred)) +
+  scale_fill_distiller(palette = "Spectral", limits = c(6.5,20)) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+  labs(fill = "Water\ntemp.") + xlab("Air temperature") + ylab("Flow") #+ 
+  #geom_point(data = tempDataSyncS %>% filter(riverOrdered == myriv), aes(x = airTemp, y = flowLS, color = temp)) +
+  #scale_color_distiller(palette = "Spectral", limits = c(0,23)) 
+# combine
+egg::ggarrange(p1, p2, nrow = 1)
+```
+
+##### Jimmy
+```{r fig.width=9, fig.height=4}
+# set up
+np <- 100
+myriv <- "WB JIMMY"
+x_temp <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+x_flow <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+pred_df <- expand_grid(x_temp, x_flow)
+
+# predict from model
+pred_df$pred <- param.summary["B.0[1]",1] + param.summary["B.0[2]",1]*pred_df$x_temp + param.summary["B.0[5]",1]*pred_df$x_flow + param.summary["B.0[6]",1]*pred_df$x_temp*pred_df$x_flow + param.summary["B.0[7]",1] + param.summary["B.0[10]",1]*pred_df$x_temp
+
+# lines 
+p1 <- ggplot(pred_df, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+  geom_line() +
+  scale_color_distiller(palette = "BrBG", direction = +1) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature") + ylim(6.5,20)
+# heatmap
+p2 <- ggplot(pred_df, aes(x = x_temp, y = x_flow)) +
+  geom_tile(aes(fill = pred)) +
+  scale_fill_distiller(palette = "Spectral", limits = c(6.5,20)) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+  labs(fill = "Water\ntemp.") + xlab("Air temperature") + ylab("Flow")
+# combine
+egg::ggarrange(p1, p2, nrow = 1)
+```
+
+##### Mitchell
+```{r fig.width=9, fig.height=4}
+# set up
+np <- 100
+myriv <- "WB MITCHELL"
+x_temp <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+x_flow <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+pred_df <- expand_grid(x_temp, x_flow)
+
+# predict from model
+pred_df$pred <- param.summary["B.0[1]",1] + param.summary["B.0[2]",1]*pred_df$x_temp + param.summary["B.0[5]",1]*pred_df$x_flow + param.summary["B.0[6]",1]*pred_df$x_temp*pred_df$x_flow + param.summary["B.0[8]",1] + param.summary["B.0[11]",1]*pred_df$x_temp
+
+# lines 
+p1 <- ggplot(pred_df, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+  geom_line() +
+  scale_color_distiller(palette = "BrBG", direction = +1) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature") + ylim(6.5,20)
+# heatmap
+p2 <- ggplot(pred_df, aes(x = x_temp, y = x_flow)) +
+  geom_tile(aes(fill = pred)) +
+  scale_fill_distiller(palette = "Spectral", limits = c(6.5,20)) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+  labs(fill = "Water\ntemp.") + xlab("Air temperature") + ylab("Flow")
+# combine
+egg::ggarrange(p1, p2, nrow = 1)
+```
+
+##### Obear
+```{r fig.width=9, fig.height=4}
+# set up
+np <- 100
+myriv <- "WB OBEAR"
+x_temp <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+x_flow <- seq(from = min(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              to = max(tempDataSyncS$airTemp[tempDataSyncS$riverOrdered == myriv]),
+              length.out = np)
+pred_df <- expand_grid(x_temp, x_flow)
+
+# predict from model
+pred_df$pred <- param.summary["B.0[1]",1] + param.summary["B.0[2]",1]*pred_df$x_temp + param.summary["B.0[5]",1]*pred_df$x_flow + param.summary["B.0[6]",1]*pred_df$x_temp*pred_df$x_flow + param.summary["B.0[9]",1] + param.summary["B.0[12]",1]*pred_df$x_temp
+
+# lines 
+p1 <- ggplot(pred_df, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+  geom_line() +
+  scale_color_distiller(palette = "BrBG", direction = +1) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature") + ylim(6.5,20)
+# heatmap
+p2 <- ggplot(pred_df, aes(x = x_temp, y = x_flow)) +
+  geom_tile(aes(fill = pred)) +
+  scale_fill_distiller(palette = "Spectral", limits = c(6.5,20)) +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+  labs(fill = "Water\ntemp.") + xlab("Air temperature") + ylab("Flow")
+# combine
+egg::ggarrange(p1, p2, nrow = 1)
+```
+
+:::
+
+
+## Hierarchical
+
+Fit the same model as above, but draw the intercepts and temperature effects hierarchically and check that the output matches
+
+
+### Specify model
+
+Modify Letcher model to estimate intercepts and slopes hierarchically
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.river[river[firstObsRows[i]], ], X.river[firstObsRows[i], ]) + inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[river[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.river[river[evalRows[i]], ], X.river[evalRows[i], ]) + inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+      }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nRiver){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
+    }
+    ar1Mean ~ dunif( -1,1 ) 
+    ar1SD ~ dunif( 0, 2 )
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:K.0) {
+      B.0[k] ~ dnorm(0, 0.001)
+      }
+      
+    # random effect coefficients
+    for (i in 1:nRiver){
+      B.river[i,1] ~ dnorm(mu.B.river[1], pow(sigma.muB[1],-2) )  
+      B.river[i,2] ~ dnorm(mu.B.river[2], pow(sigma.muB[2],-2) )  
+    }
+    mu.B.river[1] ~ dnorm(0, pow(100,-2))
+    mu.B.river[2] ~ dnorm(0, pow(100,-2))
+    sigma.muB[1] ~ dunif(0.00001, 100) 
+    sigma.muB[2] ~ dunif(0.00001, 100) 
+      
+      
+    # YEAR EFFECTS
+    # Priors for random effects of year
+    for (t in 1:Ti) { # Ti years
+      B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+      }
+      
+    mu.year[1] <- 0
+    
+    for (l in 2:L) {
+      mu.year[l] ~ dnorm(0, 0.0001)
+      }
+      
+    # Prior on multivariate normal std deviation
+    tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    df.year <- L + 1
+    sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    for (l in 1:L) {
+      for (l.prime in 1:L) {
+        rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+        }
+      sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 2:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    }", file = "DailyTempModelJAGS_Letcher_hierarchical.txt")
+```
+
+
+### Organize objects
+
+Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
+```{r}
+# row indices for first observation in each site-year
+firstObsRows <- unlist(tempDataSyncS %>% 
+  group_by(siteYear) %>%
+  summarize(index = rowNum[min(which(!is.na(temp)))]) %>%
+  ungroup() %>% 
+  select(index))
+nFirstObsRows <- length(firstObsRows)
+
+# does the number of first observations match the number of site years?
+nFirstObsRows == length(unique(tempDataSyncS$siteYear))
+```
+
+Get row indices for all other observations
+```{r}
+evalRows <- unlist(tempDataSyncS %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
+nEvalRows <- length(evalRows)
+```
+
+Fixed and random effect data
+```{r}
+data.random <- data.frame(intercept = 1,
+                          airTemp = tempDataSyncS$airTemp )
+
+data.fixed <- data.frame(#intercept = 1
+                         #,airTemp = tempDataSyncS$airTemp 
+                         airTempLag1 = tempDataSyncS$airTempLagged1
+                         ,airTempLag2 = tempDataSyncS$airTempLagged2
+                         
+                         ,flow =  tempDataSyncS$flowLS
+                         
+                         ,airFlow = tempDataSyncS$airTemp * tempDataSyncS$flowLS
+#                         ,air1Flow = tempDataSyncS$airTempLagged1 * tempDataSyncS$flowLS
+#                         ,air2Flow = tempDataSyncS$airTempLagged2 * tempDataSyncS$flowLS
+                         
+                         #main river effects
+                         # ,river1 = tempDataSyncS$river1
+                         # ,river2 = tempDataSyncS$river2
+                         # ,river3 = tempDataSyncS$river3
+                         # 
+                         # #river interaction with air temp
+                         # ,river1Air = tempDataSyncS$river1 * tempDataSyncS$airTemp
+                         # ,river2Air = tempDataSyncS$river2 * tempDataSyncS$airTemp
+                         # ,river3Air = tempDataSyncS$river3 * tempDataSyncS$airTemp
+                         
+                          ) 
+
+data.random.years <- data.frame(intercept.year = 1, 
+                     dOY  = tempDataSyncS$dOY, 
+                     dOY2 = tempDataSyncS$dOY^2,
+                     dOY3 = tempDataSyncS$dOY^3
+                     )
+```
+
+Misc. objects
+```{r}
+Ti <- length(unique(tempDataSyncS$year))
+L <- dim(data.random.years)[2]
+W.year <- diag(L)
+```
+
+Combine data in list
+```{r}
+# combine data in a list
+jags.data <- list("temp" = tempDataSyncS$temp,
+                  "nFirstObsRows" = nFirstObsRows,
+                  "firstObsRows" = firstObsRows,
+                  "nEvalRows" = nEvalRows,
+                  "evalRows" = evalRows,
+                  "X.0" = data.fixed,
+                  "X.river" = data.random,
+                  "X.year" = data.random.years,
+                  "K.0" = dim(data.fixed)[2],
+                  "nRiver" = length(unique(tempDataSyncS$site)),
+                  "Ti" = Ti,
+                  "L" = L,
+                  "W.year" = W.year,
+                  "n" = dim(tempDataSyncS)[1],
+                  "year" = as.factor(tempDataSyncS$year),
+                  "river" = as.factor(tempDataSyncS$riverOrdered)
+                  )
+```
+
+Parameters to monitor
+```{r}
+jags.params <- c("residuals",
+            "deviance",
+ #           "pD",
+            "sigma",
+            "B.0",
+            "B.river",
+            "B.year",
+            "mu.B.river",
+            "rho.B.year",
+            "mu.year",
+            "sigma.b.year",
+            "stream.mu",
+            "ar1" ,
+            "ar1Mean",
+            "ar1SD",
+            "temp",
+            "sigma.muB"
+            )
+```
+
+
+### Fit model
+
+```{r eval=FALSE}
+fit0_h <- jags(data = jags.data, inits = NULL, parameters.to.save = jags.params, model.file = "DailyTempModelJAGS_Letcher_hierarchical.txt",
+            n.chains = 3, n.thin = 5, n.burnin = 1500, n.iter = 3500, DIC = TRUE)
+```
+
+Save to file
+```{r eval=FALSE}
+saveRDS(fit0_h, "Model objects/LetcherTempModel_PeerJ2016_hierarchical.RDS")
+```
+
+Read in fitted model object
+```{r}
+fit0_h <- readRDS("Model objects/LetcherTempModel_PeerJ2016_hierarchical.RDS")
+```
+
+Get MCMC samples and summary
+```{r}
+top_mod <- fit0_h
+# generate MCMC samples and store as an array
+modelout <- top_mod$BUGSoutput
+McmcList <- vector("list", length = dim(modelout$sims.array)[2])
+for(i in 1:length(McmcList)) { McmcList[[i]] = as.mcmc(modelout$sims.array[,i,]) }
+# rbind MCMC samples from 10 chains 
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]])
+param.summary <- modelout$summary
+head(param.summary)
+```
+
+Any problematic R-hat values (>1.05)?
+```{r}
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.05]
+```
+
+View traceplots
+```{r}
+MCMCtrace(top_mod, ind = TRUE, 
+          params = c("B.0", "B.river", "mu.year", 
+                     "ar1", 
+                     "sigma"), pdf = FALSE)
+```
+
+Convert to ggs object
+```{r}
+ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
+head(ggfit)
+```
+
+### Plot model output
+
+### Goodness of fit
+
+Format observed and predicted values
+```{r}
+Mcmcdat <- as_tibble(Mcmcdat)
+
+# subset expected and observed MCMC samples
+ppdat_exp <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "stream.mu[")])
+ppdat_obs <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "temp[")])
+```
+
+Bayesian p-value
+```{r}
+sum(ppdat_exp > ppdat_obs) / (dim(ppdat_obs)[1]*dim(ppdat_obs)[2])
+```
+
+PP-check
+```{r}
+ppdat_obs_mean <- apply(ppdat_obs, 2, mean)
+ppdat_exp_mean <- apply(ppdat_exp, 2, mean)
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted (mean)")
+```
+
+
+#### Dot plots
+
+*Output is the same! Good!*
+
+```{r}
+ggs_caterpillar(ggfit, family = "mu.B.river")
+```
+
+
+Intercepts
+```{r}
+ggfit %>%
+  filter(Iteration > 125) %>% 
+  filter(Parameter %in% c("B.river[1,1]", "B.river[2,1]", "B.river[3,1]", "B.river[4,1]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.river[1,1]", "B.river[2,1]", "B.river[3,1]", "B.river[4,1]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("int_WB", "int_OL", "int_OS", "int_IS")), limits = rev) + 
+  ylab("Intercepts") +
+  theme_bw()
+```
+
+Slopes, temperature effect
+```{r}
+ggfit %>%
+  filter(Iteration > 125) %>% 
+  filter(Parameter %in% c("B.river[1,2]", "B.river[2,2]", "B.river[3,2]", "B.river[4,2]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.river[1,2]", "B.river[2,2]", "B.river[3,2]", "B.river[4,2]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("slo_WB", "slo_OL", "slo_OS", "slo_IS")), limits = rev) + 
+  ylab("Slopes, temperature effect") +
+  theme_bw()
+```
+
+
+## Hierarchical, flow var.
+
+Similar hierarchical structure as above, but allow effect of flow and flow-temp interaction to vary by site. 
+
+
+### Specify model
+
+Modify Letcher model to estimate intercepts and slopes hierarchically
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.river[river[firstObsRows[i]], ], X.river[firstObsRows[i], ]) + inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[river[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.river[river[evalRows[i]], ], X.river[evalRows[i], ]) + inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+      }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nRiver){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
+    }
+    ar1Mean ~ dunif( -1,1 ) 
+    ar1SD ~ dunif( 0, 2 )
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:K.0) {
+      B.0[k] ~ dnorm(0, 0.001)
+      }
+      
+    # random effect coefficients
+    for (i in 1:nRiver){
+      B.river[i,1] ~ dnorm(mu.B.river[1], pow(100,-2) )  
+      B.river[i,2] ~ dnorm(mu.B.river[2], pow(100,-2) )  
+      B.river[i,3] ~ dnorm(mu.B.river[3], pow(100,-2) )  
+      B.river[i,4] ~ dnorm(mu.B.river[4], pow(100,-2) )  
+    }
+    mu.B.river[1] ~ dnorm(0, pow(100,-2))
+    mu.B.river[2] ~ dnorm(0, pow(100,-2))
+    mu.B.river[3] ~ dnorm(0, pow(100,-2))
+    mu.B.river[4] ~ dnorm(0, pow(100,-2))
+      
+      
+    # YEAR EFFECTS
+    # Priors for random effects of year
+    for (t in 1:Ti) { # Ti years
+      B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+      }
+      
+    mu.year[1] <- 0
+    
+    for (l in 2:L) {
+      mu.year[l] ~ dnorm(0, 0.0001)
+      }
+      
+    # Prior on multivariate normal std deviation
+    tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    df.year <- L + 1
+    sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    for (l in 1:L) {
+      for (l.prime in 1:L) {
+        rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+        }
+      sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 2:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    }", file = "DailyTempModelJAGS_Letcher_hierarchical.txt")
+```
+
+
+### Organize objects
+
+Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
+```{r}
+# row indices for first observation in each site-year
+firstObsRows <- unlist(tempDataSyncS %>% 
+  group_by(siteYear) %>%
+  summarize(index = rowNum[min(which(!is.na(temp)))]) %>%
+  ungroup() %>% 
+  select(index))
+nFirstObsRows <- length(firstObsRows)
+
+# does the number of first observations match the number of site years?
+nFirstObsRows == length(unique(tempDataSyncS$siteYear))
+```
+
+Get row indices for all other observations
+```{r}
+evalRows <- unlist(tempDataSyncS %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
+nEvalRows <- length(evalRows)
+```
+
+Fixed and random effect data
+```{r}
+data.random <- data.frame(intercept = 1,
+                          airTemp = tempDataSyncS$airTemp, 
+                          flow =  tempDataSyncS$flowLS,
+                          airFlow = tempDataSyncS$airTemp * tempDataSyncS$flowLS)
+
+data.fixed <- data.frame(#intercept = 1
+                         #,airTemp = tempDataSyncS$airTemp 
+                         airTempLag1 = tempDataSyncS$airTempLagged1
+                         ,airTempLag2 = tempDataSyncS$airTempLagged2
+                         
+                         # ,flow =  tempDataSyncS$flowLS
+                         # 
+                         # ,airFlow = tempDataSyncS$airTemp * tempDataSyncS$flowLS
+#                         ,air1Flow = tempDataSyncS$airTempLagged1 * tempDataSyncS$flowLS
+#                         ,air2Flow = tempDataSyncS$airTempLagged2 * tempDataSyncS$flowLS
+                         
+                         #main river effects
+                         # ,river1 = tempDataSyncS$river1
+                         # ,river2 = tempDataSyncS$river2
+                         # ,river3 = tempDataSyncS$river3
+                         # 
+                         # #river interaction with air temp
+                         # ,river1Air = tempDataSyncS$river1 * tempDataSyncS$airTemp
+                         # ,river2Air = tempDataSyncS$river2 * tempDataSyncS$airTemp
+                         # ,river3Air = tempDataSyncS$river3 * tempDataSyncS$airTemp
+                         
+                          ) 
+
+data.random.years <- data.frame(intercept.year = 1, 
+                     dOY  = tempDataSyncS$dOY, 
+                     dOY2 = tempDataSyncS$dOY^2,
+                     dOY3 = tempDataSyncS$dOY^3
+                     )
+```
+
+Misc. objects
+```{r}
+Ti <- length(unique(tempDataSyncS$year))
+L <- dim(data.random.years)[2]
+W.year <- diag(L)
+```
+
+Combine data in list
+```{r}
+# combine data in a list
+jags.data <- list("temp" = tempDataSyncS$temp,
+                  "nFirstObsRows" = nFirstObsRows,
+                  "firstObsRows" = firstObsRows,
+                  "nEvalRows" = nEvalRows,
+                  "evalRows" = evalRows,
+                  "X.0" = data.fixed,
+                  "X.river" = data.random,
+                  "X.year" = data.random.years,
+                  "K.0" = dim(data.fixed)[2],
+                  "nRiver" = length(unique(tempDataSyncS$site)),
+                  "Ti" = Ti,
+                  "L" = L,
+                  "W.year" = W.year,
+                  "n" = dim(tempDataSyncS)[1],
+                  "year" = as.factor(tempDataSyncS$year),
+                  "river" = as.factor(tempDataSyncS$riverOrdered)
+                  )
+```
+
+Parameters to monitor
+```{r}
+jags.params <- c("residuals",
+            "deviance",
+ #           "pD",
+            "sigma",
+            "B.0",
+            "B.river",
+            "B.year",
+            "mu.B.river",
+            "rho.B.year",
+            "mu.year",
+            "sigma.b.year",
+            "stream.mu",
+            "ar1" ,
+            "ar1Mean",
+            "ar1SD",
+            "temp"
+            )
+```
+
+
+### Fit model
+
+```{r eval=FALSE}
+fit0_h2 <- jags(data = jags.data, inits = NULL, parameters.to.save = jags.params, model.file = "DailyTempModelJAGS_Letcher_hierarchical.txt",
+            n.chains = 3, n.thin = 5, n.burnin = 1500, n.iter = 3500, DIC = TRUE)
+```
+
+Save to file
+```{r eval=FALSE}
+saveRDS(fit0_h2, "Model objects/LetcherTempModel_PeerJ2016_hierarchical.RDS")
+```
+
+Read in fitted model object
+```{r}
+fit0_h2 <- readRDS("Model objects/LetcherTempModel_PeerJ2016_hierarchical.RDS")
+```
+
+Get MCMC samples and summary
+```{r}
+top_mod <- fit0_h2
+# generate MCMC samples and store as an array
+modelout <- top_mod$BUGSoutput
+McmcList <- vector("list", length = dim(modelout$sims.array)[2])
+for(i in 1:length(McmcList)) { McmcList[[i]] = as.mcmc(modelout$sims.array[,i,]) }
+# rbind MCMC samples from 10 chains 
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]])
+param.summary <- modelout$summary
+head(param.summary)
+```
+
+Any problematic R-hat values (>1.05)?
+```{r}
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.05]
+```
+
+View traceplots
+```{r}
+MCMCtrace(top_mod, ind = TRUE, 
+          params = c("B.0", "B.river", "mu.year", 
+                     "ar1", 
+                     "sigma"), pdf = FALSE)
+```
+
+Convert to ggs object
+```{r}
+ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
+head(ggfit)
+```
+
+
+
+## Load data
+
+Restrict to West Brook, and standardize flow by site (not sure we actually want to do this, but for just for now, to repeat Ben's work). Also set flow = NA to 0. Probably should change this to latent variable in model, especially when expanding to sites where flow data is more rare
+```{r}
+dat <- read_csv("data/EcoDrought_FlowTempData_formatted.csv") %>% 
+  filter(basin == "Snake River",
+         year == 2020) %>%
+  mutate(Yield_mm_log = log(Yield_mm + 0.00001),
+         flow_mean_log = log(flow_mean + 0.00001),
+         rowNum = 1:nrow(.)) %>%
+  #group_by(site_name) %>%
+  mutate(z_Yield_mm_log = scale(Yield_mm_log, center = TRUE, scale = TRUE),
+         z_air_temp_mean = scale(air_temp_mean, center = TRUE, scale = TRUE)) %>%
+  #ungroup() %>%
+  mutate(z_Yield_mm_log = ifelse(is.na(z_Yield_mm_log), 0, z_Yield_mm_log),
+         site_code = as.numeric(as.factor(site_name)),
+         year_code = year - min(year) + 1) 
+dat
+```
+
+View data
+
+::: panel-tabset
+
+#### Distributions
+```{r}
+ggpubr::ggarrange(dat %>% ggplot(aes(x = air_temp_mean, color = site_name)) + geom_density() + theme_bw(),
+                  dat %>% ggplot(aes(x = flow_mean_log, color = site_name)) + geom_density() + theme_bw(),
+                  dat %>% ggplot(aes(x = Yield_mm_log, color = site_name)) + geom_density() + theme_bw(),
+                  common.legend = TRUE, legend = "right", ncol = 1)
+```
+
+#### Time series
+```{r}
+dat %>% ggplot() +
+  geom_line(aes(date, air_temp_mean), color = "red") + 
+  geom_line(aes(date, tempc_mean)) +
+  geom_line(aes(date, z_Yield_mm_log*10), color = 'blue') +
+  facet_wrap(~site_name)
+```
+
+#### Air temp x Flow
+```{r}
+dat %>% 
+  filter(z_Yield_mm_log != 0) %>%
+  ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log)) + 
+  geom_point() + 
+  ggpubr::stat_cor(method = "pearson", label.x.npc = 0, label.y.npc = 0.1) +
+  facet_wrap(~site_name)
+```
+
+:::
+
+
+## Specify JAGS model
+
+Specify model following Letcher et al. (2016). MODIFIED
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:n){
+      temp[i] ~ dnorm(stream.mu[i], pow(sigma, -2)) 
+      stream.mu[i] <- trend[i]
+      trend[i] <- inprod(B.site[site[i], ], X.site[i, ])
+      
+      #flow[firstObsRows[i]] ~ dnorm(0, pow(10, -2))
+      }
+    
+    # for (i in 1:nFirstObsRows){
+    #   temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+    #   stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+    #   trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ]) #+ inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+    #   
+    #   #flow[firstObsRows[i]] ~ dnorm(0, pow(10, -2))
+    #   }
+    # 
+    # # Days with an observation on the previous dat (all days following the first day)
+    # # Includes autoregressive term (ar1)
+    # 
+    # for (i in 1:nEvalRows){ 
+    #   temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+    #   stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+    #   trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ]) #+ inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+    #   
+    #   #flow[evalRows[i]] ~ dnorm(0, pow(10, -2))
+    #   }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # # ar1, hierarchical by site
+    # for (i in 1:nSite){
+    #   ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
+    # }
+    # ar1Mean ~ dunif( -1,1 ) 
+    # ar1SD ~ dunif( 0, 2 )
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:nFixedCovs) {
+      B.0[k] ~ dnorm(0, pow(100, -2))
+      }
+    
+    
+    # SITE EFFECTS
+    for (k in 1:nRandCovs) {
+      for (i in 1:nSite) {
+        B.site[i,k] ~ dnorm(0, pow(10, -2))   
+      }
+    }
+    
+      
+    # # YEAR EFFECTS
+    # # Priors for random effects of year
+    # for (t in 1:Ti) { # Ti years
+    #   B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+    #   }
+    # 
+    # mu.year[1] <- 0
+    # 
+    # for (l in 2:L) {
+    #   mu.year[l] ~ dnorm(0, 0.0001)
+    #   }
+    # 
+    # # Prior on multivariate normal std deviation
+    # tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    # df.year <- L + 1
+    # sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    # for (l in 1:L) {
+    #   for (l.prime in 1:L) {
+    #     rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+    #     }
+    #   sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    # }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    
+    # residuals
+    # residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 1:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    # variance of model predictions (fixed + random effects)
+    var_fit <- (sd(stream.mu))^2 
+
+    # residual variance
+    var_res <- (sd(residuals))^2
+
+    # calculate Bayesian R^2
+    R2 <- var_fit / (var_fit + var_res)
+    
+    # Root mean squared error
+    rmse <- sqrt(mean(residuals[]^2))
+    
+    }", file = "DailyTempModelJAGS_mod.txt")
+```
+
+
+Straight from Letcher et al (2016)
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[river[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+      }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nRiver){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
+    }
+    ar1Mean ~ dunif( -1,1 ) 
+    ar1SD ~ dunif( 0, 2 )
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:K.0) {
+      B.0[k] ~ dnorm(0, 0.001)
+      }
+      
+      
+    # YEAR EFFECTS
+    # Priors for random effects of year
+    for (t in 1:Ti) { # Ti years
+      B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+      }
+      
+    mu.year[1] <- 0
+    
+    for (l in 2:L) {
+      mu.year[l] ~ dnorm(0, 0.0001)
+      }
+      
+    # Prior on multivariate normal std deviation
+    tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    df.year <- L + 1
+    sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    for (l in 1:L) {
+      for (l.prime in 1:L) {
+        rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+        }
+      sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 2:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    }", file = "DailyTempModelJAGS_Letcher.txt")
+```
+
+
+## Organize objects
+
+Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
+```{r}
+# row indices for first observation in each site-year
+firstObsRows <- unlist(dat %>% 
+  group_by(siteYear) %>%
+  summarize(index = rowNum[min(which(!is.na(tempc_mean)))]) %>%
+  ungroup() %>% 
+  select(index))
+nFirstObsRows <- length(firstObsRows)
+
+# does the number of first observations match the number of site years?
+nFirstObsRows == length(unique(dat$siteYear))
+```
+
+Get row indices for all other observations
+```{r}
+evalRows <- unlist(dat %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
+nEvalRows <- length(evalRows)
+```
+
+Collate JAGS data in a list
+```{r}
+# fixed effects
+data.fixed <- data.frame(intercept = 1,
+                         # air temperature
+                         airTemp = dat$air_temp_mean,
+                         airTempLag1 = dat$air_temp_mean_lag1,
+                         airTempLag2 = dat$air_temp_mean_lag2,
+                         # flow
+                         flow = dat$z_Yield_mm_log,
+                         # air temp x flow interaction
+                         airFlow = dat$air_temp_mean * dat$z_Yield_mm_log
+                         )
+
+# random site effects
+# data.random.sites <- data.frame(intercept.site = 1,
+#                                 airTemp = dat$air_temp_mean)
+data.random.sites <- data.frame(intercept.site = 1,
+                                air = dat$z_air_temp_mean,
+                                flow = dat$z_Yield_mm_log,
+                                airflow = dat$z_air_temp_mean * dat$z_Yield_mm_log)
+
+# random year effects
+data.random.years <- data.frame(intercept.year = 1,
+                                doy = dat$yday,
+                                doy2 = dat$yday^2,
+                                doy3 = dat$yday^3)
+Ti <- length(unique(dat$year))
+L <- dim(data.random.years)[2]
+W.year <- diag(L)
+
+# combine data in a list
+jags.data <- list("temp" = dat$tempc_mean,
+                  "nFirstObsRows" = nFirstObsRows,
+                  "firstObsRows" = firstObsRows,
+                  "nEvalRows" = nEvalRows,
+                  "evalRows" = evalRows,
+                  "X.0" = data.fixed,
+                  "X.site" = data.random.sites,
+                  "X.year" = data.random.years,
+                  "nFixedCovs" = dim(data.fixed)[2],
+                  "nRandCovs" = dim(data.random.sites)[2],
+                  "site" = dat$site_code,
+                  "year" = dat$year_code,
+                  "nSite" = length(unique(dat$site_code)),
+                  "Ti" = Ti,
+                  "L" = L,
+                  "W.year" = W.year,
+                  "n" = dim(dat)[1])
+```
+
+Parameters to monitor
+```{r}
+# parameters to monitor
+jags.params <- c("B.0", "B.site", "B.year",
+                 "ar1", "ar1Mean", "ar1SD", 
+                 "mu.year", "sigma.b.year",
+                 "sigma", "residuals", "R2", 
+                 "temp", "stream.mu", "rmse")
+```
+
+
+## Fit model
+
+```{r}
+fit2 <- jags(data = jags.data, inits = NULL, parameters.to.save = jags.params, model.file = "DailyTempModelJAGS_mod.txt",
+            n.chains = 3, n.thin = 5, n.burnin = 500, n.iter = 2500, DIC = TRUE)
+```
+
+Get MCMC samples and summary
+```{r}
+top_mod <- fit2
+# generate MCMC samples and store as an array
+modelout <- top_mod$BUGSoutput
+McmcList <- vector("list", length = dim(modelout$sims.array)[2])
+for(i in 1:length(McmcList)) { McmcList[[i]] = as.mcmc(modelout$sims.array[,i,]) }
+# rbind MCMC samples from 10 chains 
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]])
+param.summary <- modelout$summary
+head(param.summary)
+```
+
+Convert to ggs object
+```{r}
+ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
+```
+
+
+## Model diagnostics
+
+### Convergence
+
+Any problematic R-hat values (>1.01)?
+```{r}
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.01]
+```
+
+View traceplots
+```{r}
+MCMCtrace(top_mod, ind = TRUE, 
+          params = c("B.site", "B.year", 
+                     #"ar1", "ar1Mean", "ar1SD", "mu.year", "sigma.b.year", "B.0", 
+                     "sigma", "R2", "rmse"), pdf = FALSE)
+```
+
+
+### Goodness of fit
+
+Format observed and predicted values
+```{r}
+Mcmcdat <- as_tibble(Mcmcdat)
+
+# subset expected and observed MCMC samples
+ppdat_exp <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "stream.mu[")])
+ppdat_obs <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "temp[")])
+```
+
+Bayesian p-value
+```{r}
+sum(ppdat_exp > ppdat_obs) / (dim(ppdat_obs)[1]*dim(ppdat_obs)[2])
+```
+
+::: panel-tabset
+
+#### PP-check
+```{r}
+ppdat_obs_mean <- apply(ppdat_obs, 2, mean)
+ppdat_exp_mean <- apply(ppdat_exp, 2, mean)
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted")
+```
+
+#### RMSE
+```{r}
+mean(unlist(ggfit %>% filter(Parameter == "rmse") %>% select(value)))
+ggs_density(ggfit, "rmse") 
+```
+
+#### R-squared
+```{r}
+mean(unlist(ggfit %>% filter(Parameter == "R2") %>% select(value)))
+ggs_density(ggfit, "R2") + xlim(0,1)
+```
+:::
+
+
+## Plot model output
+
+```{r}
+myparams <- unique(ggfit$Parameter)
+```
+
+
+### Dot plots
+
+::: panel-tabset
+
+#### Intercepts
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*1]"), myparams, value = TRUE)), sort = FALSE)
+```
+
+#### Slopes: air temp.
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*2]"), myparams, value = TRUE)), sort = FALSE)
+```
+
+#### Slopes: flow
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*3]",), myparams, value = TRUE)), sort = FALSE) + xlim(-5,5)
+```
+
+#### Slopes: air x flow
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*4]"), myparams, value = TRUE)), sort = FALSE) + xlim(-2.5,2.5)
+```
+
+:::
+
+
+Interaction heat maps

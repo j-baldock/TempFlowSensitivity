@@ -18,7 +18,10 @@ book:
   date: today
   chapters:
     - index.qmd
+    - DataViz.qmd
+    - Breakpoints.qmd
     - FormatData.qmd
+    - ModelTemp.qmd
 
 format:
   html:

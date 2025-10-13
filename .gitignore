@@ -1,5 +1,11 @@
 # RStudio files
 .Rproj.user/
-
+.Rhistory/
 
 /.quarto/
+
+Breakpoints_cache/
+FormatData_cache/
+ModelTemp_cache/
+data/
+Model objects/

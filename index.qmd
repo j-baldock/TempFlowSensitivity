@@ -1,8 +1,6 @@
 # Introduction
 
-a test
-
-This book provides a visual story of efforts to quantify the influence of streamflow on water temperature in small, headwater streams.
+This book provides a visual story of efforts to quantify the influence of streamflow on water temperature in small, headwater streams. All data was collected as part of the USGS EcoDrought project, funded by the USGS Ecosystems Mission Area, USGS Water Mission Area, and the BLM. Our approach generally follows that of [Letcher et al. (2016)](https://peerj.com/articles/1727/). 
 
 Access the GitHub repo here: <https://github.com/j-baldock/TempFlowSensitivity.git>
 
