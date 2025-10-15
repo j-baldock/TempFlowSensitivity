@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.4.555">
+<meta name="generator" content="quarto-1.6.42">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>Stream Temperature by Flow - 4&nbsp; Format Data</title>
+
+
+<title>4&nbsp; Format Data – Stream Temperature by Flow</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -30,7 +33,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
   { counter-reset: source-line 0; }
@@ -53,6 +56,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 }
 </style>
 
+
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
 <script src="site_libs/clipboard/clipboard.min.js"></script>
@@ -60,19 +64,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./ModelTemp.html" rel="next">
+<link href="./ModelTemp-Letcher.html" rel="next">
 <link href="./Breakpoints.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-b53751a350365c71b6c909e95f209ed1.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark"><script id="quarto-search-options" type="application/json">{
+<link href="site_libs/bootstrap/bootstrap-2ef01e258a497a70032e58193e2c5164.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-e84d0a51d8b171802d723e26b1748781.min.css" rel="prefetch" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
   "collapse-after": 3,
@@ -98,48 +103,76 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-submit-button-title": "Submit",
     "search-label": "Search"
   }
-}</script><script type="application/json" class="js-hypothesis-config">
+}</script>
+<script type="application/json" class="js-hypothesis-config">
 {
   "theme": "clean"
 }
-</script><script async="" src="https://hypothes.is/embed.js"></script><script>
+</script>
+<script async="" src="https://hypothes.is/embed.js"></script>
+<script>
   window.document.addEventListener("DOMContentLoaded", function (_event) {
     document.body.classList.add('hypothesis-enabled');
   });
 </script>
-</head>
-<body class="nav-sidebar floating">
-<a href="https://github.com/j-baldock/TempFlowSensitivity" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewbox="0 0 250 250" style="fill:#69b3a2; color:#fff; position: 
+</head><body class="nav-sidebar floating"><a href="https://github.com/j-baldock/TempFlowSensitivity" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewbox="0 0 250 250" style="fill:#69b3a2; color:#fff; position: 
+
 absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 
+
 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 
+
 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 
+
 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 
+
 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 
+
 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 
+
 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 
+
 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 
+
 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 
+
 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 
+
 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover 
+
 .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes 
+
 octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media 
+
 (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner 
+
   .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+
+
+
+
+
+
 <div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top"><nav class="quarto-secondary-nav"><div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./FormatData.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Format Data</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
-      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
         <i class="bi bi-search"></i>
       </button>
     </div>
-  </nav></header><!-- content --><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto"><div class="pt-lg-2 mt-2 text-left sidebar-header">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
       <a href="./">Stream Temperature by Flow</a> 
         <div class="sidebar-tools-main">
@@ -154,7 +187,7 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
         </div>
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
-<li class="sidebar-item">
+        <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
@@ -180,29 +213,33 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./ModelTemp.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">ModelTemp</span></span></a>
+  <a href="./ModelTemp-Letcher.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">ModelTemp - Letcher et al.&nbsp;(2016)</span></span></a>
   </div>
 </li>
     </ul>
-</div>
-</nav><div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">Table of contents</h2>
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-<li><a href="#base-data" id="toc-base-data" class="nav-link active" data-scroll-target="#base-data"><span class="header-section-number">4.1</span> Base data</a></li>
+  <li><a href="#base-data" id="toc-base-data" class="nav-link active" data-scroll-target="#base-data"><span class="header-section-number">4.1</span> Base data</a></li>
   <li><a href="#landscape-covariates" id="toc-landscape-covariates" class="nav-link" data-scroll-target="#landscape-covariates"><span class="header-section-number">4.2</span> Landscape covariates</a></li>
   <li><a href="#check-correlations" id="toc-check-correlations" class="nav-link" data-scroll-target="#check-correlations"><span class="header-section-number">4.3</span> Check correlations</a></li>
   <li><a href="#write-to-file" id="toc-write-to-file" class="nav-link" data-scroll-target="#write-to-file"><span class="header-section-number">4.4</span> Write to file</a></li>
-  </ul></nav>
+  </ul>
+</nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title">
-<div class="quarto-title-block"><div><h1 class="title">
-<span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Format Data</span>
-</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Format Data</span></h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
 </div>
 
 
@@ -216,14 +253,20 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
   
 
 
-</header><p><strong>Purpose:</strong> Format data for modeling in JAGS</p>
-<section id="base-data" class="level2" data-number="4.1"><h2 data-number="4.1" class="anchored" data-anchor-id="base-data">
-<span class="header-section-number">4.1</span> Base data</h2>
+</header>
+
+
+<p><strong>Purpose:</strong> Format data for modeling in JAGS</p>
+<section id="base-data" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="base-data"><span class="header-section-number">4.1</span> Base data</h2>
 <p>Temperature and flow data</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu">read_csv</span><span class="op">(</span><span class="st">"data/EcoDrought_FlowTempData_DailyWeekly_clean.csv"</span><span class="op">)</span></span>
-<span><span class="va">dat</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output cell-output-stdout">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/EcoDrought_FlowTempData_DailyWeekly_clean.csv"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>dat</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 183,960 × 42
    station_no site_name   site_id basin      subbasin region   lat  long elev_ft
    &lt;chr&gt;      &lt;chr&gt;       &lt;chr&gt;   &lt;chr&gt;      &lt;chr&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
@@ -248,24 +291,27 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </div>
 <p>Fix basins and trim to focal variables.</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">mysitebasins</span> <span class="op">&lt;-</span> <span class="va">dat</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">group_by</span><span class="op">(</span><span class="va">site_name</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">summarize</span><span class="op">(</span>basin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">basin</span><span class="op">)</span>,</span>
-<span>            lat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">lat</span><span class="op">)</span>, </span>
-<span>            long <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">long</span><span class="op">)</span>, </span>
-<span>            elev_ft <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">elev_ft</span><span class="op">)</span>,</span>
-<span>            area_sqmi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">area_sqmi</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">basin</span><span class="op">)</span>, <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">lat</span><span class="op">)</span>, <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">long</span><span class="op">)</span>, <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">elev_ft</span><span class="op">)</span>, <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">area_sqmi</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">mutate</span><span class="op">(</span>basin <span class="op">=</span> <span class="fu">recode</span><span class="op">(</span><span class="va">basin</span>, <span class="st">"Shields River"</span> <span class="op">=</span> <span class="st">"Yellowstone"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="va">dat</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">select</span><span class="op">(</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="va">basin</span>, <span class="va">lat</span>, <span class="va">long</span>, <span class="va">elev_ft</span>, <span class="va">area_sqmi</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">left_join</span><span class="op">(</span><span class="va">mysitebasins</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">select</span><span class="op">(</span><span class="va">site_name</span>, <span class="va">basin</span>, <span class="va">lat</span>, <span class="va">long</span>, <span class="va">elev_ft</span>, <span class="va">area_sqmi</span>, <span class="va">date</span>, <span class="va">yday</span>, <span class="va">year</span>, <span class="va">siteYear</span>, </span>
-<span>         <span class="va">tempc_mean</span>, <span class="va">tempc_min</span>, <span class="va">tempc_max</span>, <span class="va">flow_mean</span>, <span class="va">Yield_mm</span>, <span class="va">air_temp_mean</span>, <span class="va">precip_mmday</span>, <span class="va">swe_kgm2</span>, <span class="va">daylength_sec</span>, <span class="va">shortrad_wm2</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">dat</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output cell-output-stdout">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mysitebasins <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">basin =</span> <span class="fu">unique</span>(basin),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">lat =</span> <span class="fu">unique</span>(lat), </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">long =</span> <span class="fu">unique</span>(long), </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">elev_ft =</span> <span class="fu">unique</span>(elev_ft),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">area_sqmi =</span> <span class="fu">unique</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(basin), <span class="sc">!</span><span class="fu">is.na</span>(lat), <span class="sc">!</span><span class="fu">is.na</span>(long), <span class="sc">!</span><span class="fu">is.na</span>(elev_ft), <span class="sc">!</span><span class="fu">is.na</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(basin, lat, long, elev_ft, area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(mysitebasins) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(site_name, basin, lat, long, elev_ft, area_sqmi, date, yday, year, siteYear, </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>dat</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 183,960 × 20
    site_name basin   lat  long elev_ft area_sqmi date        yday  year siteYear
    &lt;chr&gt;     &lt;chr&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;   
@@ -287,23 +333,28 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </div>
 <p>Calculate lagged air temperature variables</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># ensure proper ordering</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="va">dat</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html">order</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">site_name</span>, <span class="va">dat</span><span class="op">$</span><span class="va">year</span>, <span class="va">dat</span><span class="op">$</span><span class="va">yday</span><span class="op">)</span>,<span class="op">]</span></span>
-<span></span>
-<span><span class="co"># calculate lagged air temp</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="va">dat</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">group_by</span><span class="op">(</span><span class="va">site_name</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">mutate</span><span class="op">(</span>air_temp_mean_lag1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/lag.html">lag</a></span><span class="op">(</span><span class="va">air_temp_mean</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>         air_temp_mean_lag2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/lag.html">lag</a></span><span class="op">(</span><span class="va">air_temp_mean</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">ungroup</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure proper ordering</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat[<span class="fu">order</span>(dat<span class="sc">$</span>site_name, dat<span class="sc">$</span>year, dat<span class="sc">$</span>yday),]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate lagged air temp</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">air_temp_mean_lag1 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">1</span>),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">air_temp_mean_lag2 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>Breakpoints</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb6"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">springFallBPs</span> <span class="op">&lt;-</span> <span class="fu">read_csv</span><span class="op">(</span><span class="st">"data/breakpoints.csv"</span><span class="op">)</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">mutate</span><span class="op">(</span>basin <span class="op">=</span> <span class="fu">recode</span><span class="op">(</span><span class="va">basin</span>, <span class="st">"Shields River"</span> <span class="op">=</span> <span class="st">"Yellowstone"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">springFallBPs</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output cell-output-stdout">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/breakpoints.csv"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>springFallBPs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 459 × 9
    basin   site_name  year finalSpringBP sourceSpringBP finalFallBP sourceFallBP
    &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;         &lt;dbl&gt; &lt;chr&gt;                &lt;dbl&gt; &lt;chr&gt;       
@@ -323,11 +374,14 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </div>
 <p>Join temp/flow data with breakpoints and filter to days within synchronized period.</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">dat_bp</span> <span class="op">&lt;-</span> <span class="va">dat</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">left_join</span><span class="op">(</span><span class="va">springFallBPs</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="va">yday</span> <span class="op">&gt;=</span> <span class="va">finalSpringBP</span> <span class="op">&amp;</span> <span class="va">yday</span> <span class="op">&lt;=</span> <span class="va">finalFallBP</span><span class="op">)</span></span>
-<span><span class="va">dat_bp</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output cell-output-stdout">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(springFallBPs) <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(yday <span class="sc">&gt;=</span> finalSpringBP <span class="sc">&amp;</span> yday <span class="sc">&lt;=</span> finalFallBP)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>dat_bp</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 81,424 × 28
    site_name basin   lat  long elev_ft area_sqkm date        yday  year siteYear
    &lt;chr&gt;     &lt;chr&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;   
@@ -352,69 +406,89 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </div>
 <p>Show the distribution of the number of temperature observations (non-NA) per site-year</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb10"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">obspersy</span> <span class="op">&lt;-</span> <span class="va">dat_bp</span> <span class="op">%&gt;%</span> <span class="fu">group_by</span><span class="op">(</span><span class="va">siteYear</span><span class="op">)</span> <span class="op">%&gt;%</span> <span class="fu">summarize</span><span class="op">(</span>numobs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html">sum</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">tempc_mean</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span> <span class="fu">ungroup</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">obspersy</span> <span class="op">%&gt;%</span> <span class="fu">ggplot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> <span class="fu">geom_histogram</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">numobs</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu">theme_bw</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output-display">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>obspersy <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(siteYear) <span class="sc">%&gt;%</span> <span class="fu">summarize</span>(<span class="at">numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean))) <span class="sc">%&gt;%</span> <span class="fu">ungroup</span>()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
 <div>
-<figure class="figure"><p><img src="FormatData_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+<figure class="figure">
+<p><img src="FormatData_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Drop siteYears with less than 10 days of temperature observations</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">drops</span> <span class="op">&lt;-</span> <span class="va">obspersy</span> <span class="op">%&gt;%</span> <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="va">numobs</span> <span class="op">&lt;</span> <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="va">dat_bp</span> <span class="op">&lt;-</span> <span class="va">dat_bp</span> <span class="op">%&gt;%</span> <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="op">!</span><span class="va">siteYear</span> <span class="op"><a href="https://rdrr.io/r/base/match.html">%in%</a></span> <span class="va">drops</span><span class="op">$</span><span class="va">siteYear</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>drops <span class="ot">&lt;-</span> obspersy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(numobs <span class="sc">&lt;</span> <span class="dv">10</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>siteYear <span class="sc">%in%</span> drops<span class="sc">$</span>siteYear)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>Plot temp data with LOESS to show seasonal hysteresis</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb12"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">dat_bp</span> <span class="op">%&gt;%</span> </span>
-<span>  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">yday</span>, y <span class="op">=</span> <span class="va">tempc_mean</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>  <span class="fu">geom_point</span><span class="op">(</span>size <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">facet_wrap</span><span class="op">(</span><span class="op">~</span><span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">basin</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">geom_smooth</span><span class="op">(</span>color <span class="op">=</span> <span class="st">"red"</span>, se <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">theme_bw</span><span class="op">(</span><span class="op">)</span> <span class="co">#+ theme(panel.grid = element_blank())</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details><div class="cell-output-display">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="sc">%&gt;%</span> </span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span> </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">factor</span>(basin, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span>))) <span class="sc">+</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">color =</span> <span class="st">"red"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="co">#+ theme(panel.grid = element_blank())</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
 <div>
-<figure class="figure"><p><img src="FormatData_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+<figure class="figure">
+<p><img src="FormatData_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Create dummy site and basin varibles (numeric for JAGS), and define “rowNum” variable to allow for identifying first rows and evaluation rows</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb13"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># arrange</span></span>
-<span><span class="va">dat_bp</span> <span class="op">&lt;-</span> <span class="va">dat_bp</span> <span class="op">%&gt;%</span> <span class="fu">arrange</span><span class="op">(</span><span class="va">basin</span>, <span class="va">site_name</span>, <span class="va">year</span>, <span class="va">yday</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># create tibbles of site and basin numeric codes</span></span>
-<span><span class="va">sitecodes</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="op">(</span>site_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">dat_bp</span><span class="op">$</span><span class="va">site_name</span><span class="op">)</span>, site_code <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">dat_bp</span><span class="op">$</span><span class="va">site_name</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">basincodes</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="op">(</span>basin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">dat_bp</span><span class="op">$</span><span class="va">basin</span><span class="op">)</span>, basin_code <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="va">dat_bp</span><span class="op">$</span><span class="va">basin</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># join to data</span></span>
-<span><span class="va">dat_bp</span> <span class="op">&lt;-</span> <span class="va">dat_bp</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">left_join</span><span class="op">(</span><span class="va">sitecodes</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">left_join</span><span class="op">(</span><span class="va">basincodes</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">mutate</span><span class="op">(</span>rowNum <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html">nrow</a></span><span class="op">(</span><span class="va">.</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(basin, site_name, year, yday)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># create tibbles of site and basin numeric codes</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>sitecodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">site_name =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name), <span class="at">site_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name)))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>basincodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">basin =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin), <span class="at">basin_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin)))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co"># join to data</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sitecodes) <span class="sc">%&gt;%</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(basincodes) <span class="sc">%&gt;%</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rowNum =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(.))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-</section><section id="landscape-covariates" class="level2" data-number="4.2"><h2 data-number="4.2" class="anchored" data-anchor-id="landscape-covariates">
-<span class="header-section-number">4.2</span> Landscape covariates</h2>
+</section>
+<section id="landscape-covariates" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="landscape-covariates"><span class="header-section-number">4.2</span> Landscape covariates</h2>
 <p><em>To do – derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percept forest cover, etc.)</em></p>
-</section><section id="check-correlations" class="level2" data-number="4.3"><h2 data-number="4.3" class="anchored" data-anchor-id="check-correlations">
-<span class="header-section-number">4.3</span> Check correlations</h2>
-</section><section id="write-to-file" class="level2" data-number="4.4"><h2 data-number="4.4" class="anchored" data-anchor-id="write-to-file">
-<span class="header-section-number">4.4</span> Write to file</h2>
+</section>
+<section id="check-correlations" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="check-correlations"><span class="header-section-number">4.3</span> Check correlations</h2>
+</section>
+<section id="write-to-file" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="write-to-file"><span class="header-section-number">4.4</span> Write to file</h2>
 <p>Write formatted data to file</p>
 <div class="cell">
-<details class="code-fold"><summary>Code</summary><div class="sourceCode" id="cb14"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu">write_csv</span><span class="op">(</span><span class="va">dat_bp</span>, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 
 
 <!-- -->
 
-</section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {
     const mode = bsSheetEl.getAttribute("data-mode");
@@ -593,18 +667,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
     return false;
   }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
+  const onCopySuccess = function(e) {
     // button target
     const button = e.trigger;
     // don't keep focus
@@ -636,7 +699,27 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }, 1000);
     // clear code selection
     e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
   });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
   const viewSource = window.document.getElementById('quarto-view-source') ||
                      window.document.getElementById('quarto-code-tools-source');
   if (viewSource) {
@@ -695,7 +778,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
     }
     // Inspect non-navigation links and adorn them if external
- 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
     for (var i=0; i<links.length; i++) {
       const link = links[i];
       if (!isInternal(link.href)) {
@@ -792,7 +875,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       if (window.Quarto?.typesetMath) {
         window.Quarto.typesetMath(note);
       }
-      // TODO in 1.5, we should make sure this works without a callout special case
       if (note.classList.contains("callout")) {
         return note.outerHTML;
       } else {
@@ -1017,14 +1099,16 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
   }
 });
-</script><nav class="page-navigation"><div class="nav-page nav-page-previous">
+</script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
       <a href="./Breakpoints.html" class="pagination-link" aria-label="Breakpoints">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Breakpoints</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./ModelTemp.html" class="pagination-link" aria-label="ModelTemp">
-        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">ModelTemp</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./ModelTemp-Letcher.html" class="pagination-link" aria-label="ModelTemp - Letcher et al. (2016)">
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">ModelTemp - Letcher et al.&nbsp;(2016)</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
@@ -1155,10 +1239,9 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span>
 <span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a></span>
-</code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
-
 
 
 

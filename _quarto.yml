@@ -21,7 +21,7 @@ book:
     - DataViz.qmd
     - Breakpoints.qmd
     - FormatData.qmd
-    - ModelTemp.qmd
+    - ModelTemp-Letcher.qmd
 
 format:
   html:
