@@ -17,34 +17,52 @@ library(GGally)
 library(beepr)
 ```
 
+Notes:
 
+* Consider bringing in additional data from NWIS to fill in middle-upper end of catchment size spectrum (Snake: Blackrock, Cache, Granite...bigger rivers? (Hoback, Gros Ventre, Greys...where to draw the line?))
 
 ## Load data
 
-Restrict to West Brook, and standardize flow by site (not sure we actually want to do this, but for just for now, to repeat Ben's work). Also set flow = NA to 0. Probably should change this to latent variable in model, especially when expanding to sites where flow data is more rare
+Also set flow = NA to 0. Probably should change this to latent variable in model, especially when expanding to sites where flow data is more rare
 ```{r}
 dat <- read_csv("data/EcoDrought_FlowTempData_formatted.csv") %>% 
-  filter(basin == "Snake River",
-         year == 2020) %>%
-  mutate(Yield_mm_log = log(Yield_mm + 0.00001),
-         flow_mean_log = log(flow_mean + 0.00001),
-         rowNum = 1:nrow(.)) %>%
-  #group_by(site_name) %>%
-  mutate(z_Yield_mm_log = scale(Yield_mm_log, center = TRUE, scale = TRUE),
-         z_air_temp_mean = scale(air_temp_mean, center = TRUE, scale = TRUE)) %>%
-  #ungroup() %>%
-  mutate(z_Yield_mm_log = ifelse(is.na(z_Yield_mm_log), 0, z_Yield_mm_log),
+  filter(basin == "Snake River") %>%
+  mutate(rowNum = 1:nrow(.),
          site_code = as.numeric(as.factor(site_name)),
-         year_code = year - min(year) + 1) 
+         year_code = year - min(year) + 1) %>%
+  filter(!is.na(tempc_mean)) %>%
+  mutate(z_Yield_mm_log = ifelse(is.na(z_Yield_mm_log), 0, z_Yield_mm_log))
 dat
 ```
 
-Any missing data?
+Drop sites without any flow or water temp observations and re-do site and year codes
 ```{r}
-any(is.na(tempDataSyncS$airTemp))
-any(is.na(tempDataSyncS$airTempLagged1))
-any(is.na(tempDataSyncS$airTempLagged2))
-any(is.na(tempDataSyncS$flowLS))
+dropsites <- unlist(dat %>% 
+  group_by(site_name) %>% 
+  summarize(numt = sum(!is.na(tempc_mean)), 
+            numf = sum(!is.na(z_Yield_mm_log))) %>% 
+  ungroup() %>%
+  filter(numt == 0 | numf == 0) %>%
+  select(site_name))
+
+dat <- dat %>% 
+  filter(!site_name %in% dropsites) %>%
+  mutate(rowNum = 1:nrow(.),
+         site_code = as.numeric(as.factor(site_name)),
+         year_code = year - min(year) + 1)
+```
+
+View site codes
+```{r}
+dat %>% group_by(site_name) %>% summarize(site_code = unique(site_code)) %>% ungroup()
+```
+
+Any missing data? *Need to put a prior on flow*
+```{r}
+any(is.na(dat$z_air_temp_mean))
+any(is.na(dat$z_air_temp_mean_lag1))
+any(is.na(dat$z_air_temp_mean_lag2))
+any(is.na(dat$z_Yield_mm_log))
 ```
 
 View data
@@ -59,29 +77,163 @@ ggpubr::ggarrange(dat %>% ggplot(aes(x = air_temp_mean, color = site_name)) + ge
                   common.legend = TRUE, legend = "right", ncol = 1)
 ```
 
-#### Time series
+#### Air temp
 ```{r}
-dat %>% ggplot() +
-  geom_line(aes(date, air_temp_mean), color = "red") + 
-  geom_line(aes(date, tempc_mean)) +
-  geom_line(aes(date, z_Yield_mm_log*10), color = 'blue') +
-  facet_wrap(~site_name)
+ggplot(dat, aes(yday, z_air_temp_mean))+
+  geom_line(aes(color = factor(year))) +
+  facet_grid(year ~ site_name)
 ```
 
-#### Air temp x Flow
+#### Water temp
 ```{r}
-dat %>% 
-  filter(z_Yield_mm_log != 0) %>%
-  ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log)) + 
-  geom_point() + 
-  ggpubr::stat_cor(method = "pearson", label.x.npc = 0, label.y.npc = 0.1) +
-  facet_wrap(~site_name)
+ggplot(dat, aes(yday, tempc_mean))+
+  geom_line(aes(color = factor(year)))+
+  facet_grid(year ~ site_name)
 ```
+
+#### Flow (log and std)
+```{r}
+ggplot(dat, aes(yday, z_Yield_mm_log))+
+  geom_line(aes(color = factor(year)))+
+  facet_grid(year ~ site_name)
+```
+
+#### Tw ~ Ta + F
+```{r}
+dat %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+#### Ta ~ F
+```{r}
+dat %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
 
 :::
 
 
 ## Specify JAGS model
+
+Specify hierarchical model following Letcher et al. (2016). MODIFIED:
+
+* add prior on covariates to deal with missing values
+* calculate Bayesian R^2 and RMSE
+* remove the year trends (same as for Hocking et al 2018)
+* add catchment covariate effects on random effects parameters
+
+```{r}
+cat("model {
+
+    ###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + 
+                                inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ]) + 
+                                inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
+      #X.site[firstObsRows[i], ] ~ dnorm(0, pow(1, -2))
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]] <- inprod(B.0[], X.0[evalRows[i], ]) + 
+                            inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ]) + 
+                            inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
+      #X.site[evalRows[i], ] ~ dnorm(0, pow(1, -2))
+      }
+    
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nsites){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD, -2)) T(-1,1)       
+    }
+    ar1Mean ~ dunif(-1, 1) 
+    ar1SD ~ dunif(0, 2)
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # fixed effect coefficients
+    for (k in 1:Kfixed) {
+      B.0[k] ~ dnorm(0, 0.001)
+      }
+      
+    # random effect coefficients (by site)
+    for (k in 1:Krandom) {
+      sigma.B.site[k] ~ dunif(0, 100)
+      alpha.0[k] ~ dnorm(0, pow(10, -2))
+      alpha.1[k] ~ dnorm(0, pow(10, -2))
+      for (i in 1:nsites) {
+        B.site[i,k] ~ dnorm(mu.B.site[i,k], pow(sigma.B.site[k], -2))
+        mu.B.site[i,k] <- alpha.0[k] + alpha.1[k] * area[i]
+      }
+    }
+    
+    # YEAR EFFECTS
+    for(l in 1:L) {
+      sigma.b.year[l] ~ dunif(0, 100)
+      for(t in 1:Ti){
+        B.year[t, l] ~ dnorm(0, pow(sigma.b.year[l], -2))
+        }
+      }
+    
+    # # YEAR EFFECTS
+    # # Priors for random effects of year
+    # for (t in 1:Ti) { # Ti years
+    #   B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
+    #   }
+    #   
+    # mu.year[1] <- 0
+    # 
+    # for (l in 2:L) {
+    #   mu.year[l] ~ dnorm(0, 0.0001)
+    #   }
+    #   
+    # # Prior on multivariate normal std deviation
+    # tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
+    # df.year <- L + 1
+    # sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
+    # for (l in 1:L) {
+    #   for (l.prime in 1:L) {
+    #     rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
+    #     }
+    #   sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
+    # }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    #residuals[1] <- 0 # hold the place. Not sure if this is necessary...
+    for (i in 1:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    # variance of model predictions (fixed + random effects)
+    var_fit <- (sd(stream.mu))^2
+
+    # residual variance
+    var_res <- (sd(residuals))^2
+
+    # calculate Bayesian R^2
+    R2 <- var_fit / (var_fit + var_res)
+
+    # Root mean squared error
+    rmse <- sqrt(mean(residuals[]^2))
+    
+    }", file = "JAGS models/DailyTempModelJAGS_Letcher_hierarchical_modified.txt")
+```
+
 
 Specify model following Letcher et al. (2016). MODIFIED
 ```{r}
@@ -196,85 +348,6 @@ cat("model {
 ```
 
 
-Straight from Letcher et al (2016)
-```{r}
-cat("model {
-
-    ###----------------- LIKELIHOOD -----------------###
-    
-    # Days without an observation on the previous day (first observation in a series)
-    # No autoregressive term
-    
-    for (i in 1:nFirstObsRows){
-      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
-      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
-      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
-      }
-    
-    # Days with an observation on the previous dat (all days following the first day)
-    # Includes autoregressive term (ar1)
-    
-    for (i in 1:nEvalRows){ 
-      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
-      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[river[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
-      trend[evalRows[i]]  <- inprod(B.0[], X.0[evalRows[i], ]) + inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
-      }
-    
-    
-    ###----------------- PRIORS ---------------------###
-    
-    # ar1, hierarchical by site
-    for (i in 1:nRiver){
-      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD,-2) ) T(-1,1)       
-    }
-    ar1Mean ~ dunif( -1,1 ) 
-    ar1SD ~ dunif( 0, 2 )
-
-
-    # model variance
-    sigma ~ dunif(0, 100)
-    
-    
-    # fixed effect coefficients
-    for (k in 1:K.0) {
-      B.0[k] ~ dnorm(0, 0.001)
-      }
-      
-      
-    # YEAR EFFECTS
-    # Priors for random effects of year
-    for (t in 1:Ti) { # Ti years
-      B.year[t, 1:L] ~ dmnorm(mu.year[ ], tau.B.year[ , ])
-      }
-      
-    mu.year[1] <- 0
-    
-    for (l in 2:L) {
-      mu.year[l] ~ dnorm(0, 0.0001)
-      }
-      
-    # Prior on multivariate normal std deviation
-    tau.B.year[1:L, 1:L] ~ dwish(W.year[ , ], df.year)
-    df.year <- L + 1
-    sigma.B.year[1:L, 1:L] <- inverse(tau.B.year[ , ])
-    for (l in 1:L) {
-      for (l.prime in 1:L) {
-        rho.B.year[l, l.prime] <- sigma.B.year[l, l.prime]/sqrt(sigma.B.year[l, l]*sigma.B.year[l.prime, l.prime])
-        }
-      sigma.b.year[l] <- sqrt(sigma.B.year[l, l])
-    }
-    
-    
-    ###----------------- DERIVED VALUES -------------###
-    residuals[1] <- 0 # hold the place. Not sure if this is necessary...
-    for (i in 2:n) {
-      residuals[i] <- temp[i] - stream.mu[i]
-    }
-    
-    }", file = "DailyTempModelJAGS_Letcher.txt")
-```
-
-
 ## Organize objects
 
 Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
@@ -297,110 +370,137 @@ evalRows <- unlist(dat %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
 nEvalRows <- length(evalRows)
 ```
 
-Collate JAGS data in a list
+Fixed and random effect data
 ```{r}
-# fixed effects
-data.fixed <- data.frame(intercept = 1,
-                         # air temperature
-                         airTemp = dat$air_temp_mean,
-                         airTempLag1 = dat$air_temp_mean_lag1,
-                         airTempLag2 = dat$air_temp_mean_lag2,
-                         # flow
-                         flow = dat$z_Yield_mm_log,
-                         # air temp x flow interaction
-                         airFlow = dat$air_temp_mean * dat$z_Yield_mm_log
-                         )
+data.random <- data.frame(intercept = 1,
+                          airTemp = dat$z_air_temp_mean, 
+                          flow =  dat$z_Yield_mm_log,
+                          airFlow = dat$z_air_temp_mean * dat$z_Yield_mm_log)
 
-# random site effects
-# data.random.sites <- data.frame(intercept.site = 1,
-#                                 airTemp = dat$air_temp_mean)
-data.random.sites <- data.frame(intercept.site = 1,
-                                air = dat$z_air_temp_mean,
-                                flow = dat$z_Yield_mm_log,
-                                airflow = dat$z_air_temp_mean * dat$z_Yield_mm_log)
+data.fixed <- data.frame(airTempLag1 = dat$z_air_temp_mean_lag1,
+                         airTempLag2 = dat$z_air_temp_mean_lag2) 
 
-# random year effects
-data.random.years <- data.frame(intercept.year = 1,
-                                doy = dat$yday,
-                                doy2 = dat$yday^2,
-                                doy3 = dat$yday^3)
+data.random.years <- data.frame(intercept.year = rep(1, length.out = dim(data.fixed)[1])#, 
+                                #dOY  = dat$yday, 
+                                #dOY2 = dat$yday^2,
+                                #dOY3 = dat$yday^3
+                                )
+
+data.random.covs <- log(dat %>% group_by(site_code) %>% summarize(area_sqmi = unique(area_sqmi)) %>% ungroup() %>% arrange(site_code) %>% pull(area_sqmi))
+```
+
+Misc. objects
+```{r}
 Ti <- length(unique(dat$year))
 L <- dim(data.random.years)[2]
 W.year <- diag(L)
+```
 
+Combine data in list
+```{r}
 # combine data in a list
 jags.data <- list("temp" = dat$tempc_mean,
                   "nFirstObsRows" = nFirstObsRows,
                   "firstObsRows" = firstObsRows,
                   "nEvalRows" = nEvalRows,
                   "evalRows" = evalRows,
-                  "X.0" = data.fixed,
-                  "X.site" = data.random.sites,
-                  "X.year" = data.random.years,
-                  "nFixedCovs" = dim(data.fixed)[2],
-                  "nRandCovs" = dim(data.random.sites)[2],
-                  "site" = dat$site_code,
-                  "year" = dat$year_code,
-                  "nSite" = length(unique(dat$site_code)),
+                  "X.0" = as.matrix(data.fixed),
+                  "X.site" = as.matrix(data.random),
+                  "X.year" = as.matrix(data.random.years),
+                  "Kfixed" = dim(data.fixed)[2],
+                  "Krandom" = dim(data.random)[2],
+                  "nsites" = length(unique(dat$site_name)),
                   "Ti" = Ti,
                   "L" = L,
                   "W.year" = W.year,
-                  "n" = dim(dat)[1])
+                  "n" = dim(dat)[1],
+                  "year" = dat$year_code,
+                  "site" = dat$site_code,
+                  "area" = data.random.covs
+                  )
 ```
 
 Parameters to monitor
 ```{r}
-# parameters to monitor
-jags.params <- c("B.0", "B.site", "B.year",
-                 "ar1", "ar1Mean", "ar1SD", 
-                 "mu.year", "sigma.b.year",
-                 "sigma", "residuals", "R2", 
-                 "temp", "stream.mu", "rmse")
+jags.params <- c("residuals",
+                 "deviance",
+                 "sigma",
+                 "B.0",
+                 "B.site",
+                 "B.year",
+                 "rho.B.year",
+                 "mu.year",
+                 "sigma.b.year",
+                 "stream.mu",
+                 "ar1" ,
+                 "ar1Mean",
+                 "ar1SD",
+                 "temp",
+                 "sigma.B.site",
+                 "R2",
+                 "rmse",
+                 "alpha.0",
+                 "alpha.1"
+                 )
 ```
 
 
 ## Fit model
 
 ```{r}
-fit2 <- jags(data = jags.data, inits = NULL, parameters.to.save = jags.params, model.file = "DailyTempModelJAGS_mod.txt",
-            n.chains = 3, n.thin = 5, n.burnin = 500, n.iter = 2500, DIC = TRUE)
+fit_ed <- jags.parallel(data = jags.data, inits = NULL, parameters.to.save = jags.params, 
+                        model.file = "JAGS models/DailyTempModelJAGS_Letcher_hierarchical_modified.txt",
+                        n.chains = 10, n.thin = 10, n.burnin = 1000, n.iter = 3000, DIC = TRUE)
+```
+
+
+#### Save model ouput
+
+Save to file
+```{r eval=FALSE}
+saveRDS(fit_ed, "Model objects/LetcherTempModel_EcoDrought_hierarchical.RDS")
+```
+
+Read in fitted model object
+```{r}
+fit_ed <- readRDS("Model objects/LetcherTempModel_EcoDrought_hierarchical.RDS")
 ```
 
 Get MCMC samples and summary
 ```{r}
-top_mod <- fit2
+top_mod <- fit_ed
 # generate MCMC samples and store as an array
 modelout <- top_mod$BUGSoutput
 McmcList <- vector("list", length = dim(modelout$sims.array)[2])
 for(i in 1:length(McmcList)) { McmcList[[i]] = as.mcmc(modelout$sims.array[,i,]) }
 # rbind MCMC samples from 10 chains 
-Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]])
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]], McmcList[[4]], McmcList[[5]], McmcList[[6]], McmcList[[7]], McmcList[[8]], McmcList[[9]], McmcList[[10]])
 param.summary <- modelout$summary
 head(param.summary)
 ```
 
-Convert to ggs object
+
+#### Check convergence
+
+Any problematic R-hat values (>1.05)?
 ```{r}
-ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
-```
-
-
-## Model diagnostics
-
-### Convergence
-
-Any problematic R-hat values (>1.01)?
-```{r}
-top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.01]
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.05]
 ```
 
 View traceplots
 ```{r}
 MCMCtrace(top_mod, ind = TRUE, 
-          params = c("B.site", "B.year", 
-                     #"ar1", "ar1Mean", "ar1SD", "mu.year", "sigma.b.year", "B.0", 
-                     "sigma", "R2", "rmse"), pdf = FALSE)
+          params = c("B.0", "B.site", "B.year", 
+                     "ar1", "alpha.0", "alpha.1",
+                     "sigma"), pdf = FALSE)
 ```
+
+Convert to ggs object
+```{r}
+ggfit <- ggs(as.mcmc(top_mod), keep_original_order = TRUE)
+head(ggfit)
+```
+
 
 
 ### Goodness of fit
@@ -419,9 +519,7 @@ Bayesian p-value
 sum(ppdat_exp > ppdat_obs) / (dim(ppdat_obs)[1]*dim(ppdat_obs)[2])
 ```
 
-::: panel-tabset
-
-#### PP-check
+PP-check, global
 ```{r}
 ppdat_obs_mean <- apply(ppdat_obs, 2, mean)
 ppdat_exp_mean <- apply(ppdat_exp, 2, mean)
@@ -431,27 +529,40 @@ tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean) %>%
   # geom_smooth(method = "lm") +
   geom_abline(intercept = 0, slope = 1, color = "red") + 
   theme_bw() + theme(panel.grid = element_blank()) +
-  xlab("Observed") + ylab("Predicted")
+  xlab("Observed") + ylab("Predicted (mean)")
 ```
 
-#### RMSE
+PP-check by river and year
+```{r fig.height=10, fig.width=10}
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean, site = dat$site_name, year = dat$year) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted (mean)") +
+  facet_grid(year ~ site)
+```
+
+RMSE
 ```{r}
 mean(unlist(ggfit %>% filter(Parameter == "rmse") %>% select(value)))
-ggs_density(ggfit, "rmse") 
+ggs_density(ggfit, "rmse") + theme_bw()
 ```
 
-#### R-squared
+R-squared
 ```{r}
 mean(unlist(ggfit %>% filter(Parameter == "R2") %>% select(value)))
-ggs_density(ggfit, "R2") + xlim(0,1)
+ggs_density(ggfit, "R2") + theme_bw()
 ```
-:::
+
 
 
 ## Plot model output
 
 ```{r}
 myparams <- unique(ggfit$Parameter)
+mysites <- c(dat %>% group_by(site_name) %>% summarize(site_code = unique(site_code)) %>% ungroup() %>% select(site_name))
 ```
 
 
@@ -459,27 +570,443 @@ myparams <- unique(ggfit$Parameter)
 
 ::: panel-tabset
 
-#### Intercepts
+##### Fixed effects
 ```{r}
-ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*1]"), myparams, value = TRUE)), sort = FALSE)
+ggs_caterpillar(ggfit, family = "B.0", sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Air temp, lag 1", "Air temp, lag 2")), limits = rev) + 
+  ylab("Fixed effects") +
+  theme_bw()
 ```
 
-#### Slopes: air temp.
+
+##### Site intercepts
 ```{r}
-ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*2]"), myparams, value = TRUE)), sort = FALSE)
+ggfit %>%
+  filter(Parameter %in% c("B.site[1,1]", "B.site[2,1]", "B.site[3,1]", "B.site[4,1]", "B.site[5,1]",
+                          "B.site[6,1]", "B.site[7,1]", "B.site[8,1]", "B.site[9,1]", "B.site[10,1]", "B.site[11,1]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,1]", "B.site[2,1]", "B.site[3,1]", "B.site[4,1]", "B.site[5,1]",
+                                                  "B.site[6,1]", "B.site[7,1]", "B.site[8,1]", "B.site[9,1]", "B.site[10,1]", "B.site[11,1]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(mysites$site_name), limits = rev) + 
+  ylab("Intercepts") +
+  theme_bw()
 ```
 
-#### Slopes: flow
+##### Site slopes - temp
 ```{r}
-ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*3]",), myparams, value = TRUE)), sort = FALSE) + xlim(-5,5)
+ggfit %>%
+  filter(Parameter %in% c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(mysites$site_name), limits = rev) + 
+  ylab("Slopes, temperature effect") +
+  theme_bw()
 ```
 
-#### Slopes: air x flow
+##### Site slopes - flow
 ```{r}
-ggs_caterpillar(ggfit %>% filter(Parameter %in% grep(glob2rx("B.site*4]"), myparams, value = TRUE)), sort = FALSE) + xlim(-2.5,2.5)
+ggfit %>%
+  filter(Parameter %in% c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(mysites$site_name), limits = rev) + 
+  ylab("Slopes, flow effect") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Site slopes - temp x flow
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("B.site[1,4]", "B.site[2,4]", "B.site[3,4]", "B.site[4,4]", "B.site[5,4]",
+                          "B.site[6,4]", "B.site[7,4]", "B.site[8,4]", "B.site[9,4]", "B.site[10,4]", "B.site[11,4]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,4]", "B.site[2,4]", "B.site[3,4]", "B.site[4,4]", "B.site[5,4]",
+                          "B.site[6,4]", "B.site[7,4]", "B.site[8,4]", "B.site[9,4]", "B.site[10,4]", "B.site[11,4]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(mysites$site_name), limits = rev) + 
+  ylab("Slopes, temp-flow interaction") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Autoregressive terms
+```{r}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% c("ar1[1]", "ar1[2]", "ar1[3]", "ar1[4]", "ar1[5]",
+                          "ar1[6]", "ar1[7]", "ar1[8]", "ar1[9]", "ar1[10]", "ar1[11]")) %>%
+                  mutate(Parameter = factor(Parameter, levels = c("ar1[1]", "ar1[2]", "ar1[3]", "ar1[4]", "ar1[5]",
+                          "ar1[6]", "ar1[7]", "ar1[8]", "ar1[9]", "ar1[10]", "ar1[11]"))),
+                sort = FALSE) + scale_y_discrete(labels = rev(mysites$site_name), limits = rev) + theme_bw() 
+```
+
+##### Year effects (offsets)
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("B.year[1,1]", "B.year[2,1]", "B.year[3,1]", "B.year[4,1]", "B.year[5,1]",
+                          "B.year[6,1]", "B.year[7,1]", "B.year[8,1]", "B.year[9,1]", "B.year[10,1]", 
+                          "B.year[11,1]", "B.year[12,1]", "B.year[13,1]", "B.year[14,1]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.year[1,1]", "B.year[2,1]", "B.year[3,1]", "B.year[4,1]", "B.year[5,1]",
+                          "B.year[6,1]", "B.year[7,1]", "B.year[8,1]", "B.year[9,1]", "B.year[10,1]", 
+                          "B.year[11,1]", "B.year[12,1]", "B.year[13,1]", "B.year[14,1]"))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(sort(unique(dat$year))), limits = rev) + 
+  ylab("Year effects, offsets to intercepts") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Catchment area effects
+```{r}
+ggs_caterpillar(ggfit, family = "alpha.1", sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Intercepts", "Temp eff.", "Flow eff.", "Temp-Flow int.")), limits = rev) + 
+  ylab("Catchment size effects") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+
+:::
+
+
+
+### Marginal efffects
+
+#### Temp-flow by site
+
+Site names and codes
+```{r}
+sitecodes <- dat %>% group_by(site_name) %>% summarize(site_code = unique(site_code)) %>% ungroup()
+sitecodes
+```
+
+Plotting function
+```{r}
+margplot <- function(code) {
+  np <- 100
+  myriv <- sitecodes$site_name[code]
+  x_temp <- seq(from = min(dat$z_air_temp_mean[dat$site_name == myriv]),
+                to = max(dat$z_air_temp_mean[dat$site_name == myriv]),
+                length.out = np)
+  x_flow <- seq(from = min(dat$z_Yield_mm_log[dat$site_name == myriv]),
+                to = max(dat$z_Yield_mm_log[dat$site_name == myriv]),
+                length.out = np)
+  pred_df <- expand_grid(x_temp, x_flow)
+
+  # predict from model
+  pred_df$pred <- param.summary[paste("B.site[", code, ",1]", sep = ""),1] + param.summary[paste("B.site[", code, ",2]", sep = ""),1]*pred_df$x_temp + param.summary[paste("B.site[", code, ",3]", sep = ""),1]*pred_df$x_flow + param.summary[paste("B.site[", code, ",4]", sep = ""),1]*pred_df$x_temp*pred_df$x_flow
+
+  # lines 
+  p1 <- ggplot(pred_df, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+    geom_line() +
+    scale_color_distiller(palette = "BrBG", direction = +1) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature") + ylim(0,20) #+
+    #geom_point(dat %>% filter(site_name == myriv), mapping = aes(x = z_air_temp_mean, y = tempc_mean, group = NA), color = "black", size = 0.2, shape = 16) 
+ # heatmap
+  p2 <- ggplot(pred_df, aes(x = x_temp, y = x_flow)) +
+    geom_tile(aes(fill = pred)) +
+    scale_fill_distiller(palette = "Spectral", limits = c(0,20)) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+    labs(fill = "Water\ntemp.") + xlab("Air temperature") + ylab("Flow") #+ 
+    #geom_point(data = dat %>% filter(site_name == myriv), aes(x = z_air_temp_mean, y = z_Yield_mm_log, color = tempc_mean)) +
+    #scale_color_distiller(palette = "Spectral", limits = c(0,20)) 
+  # combine
+  egg::ggarrange(p1, p2, nrow = 1)
+}
+```
+
+
+*Interpretation of these plots (specifically, stream temperature outcome) is complicated by the ~large effects of lagged air temperature variables and temporal autocorrelation*
+
+::: panel-tabset
+
+##### Grizzly Creek
+```{r}
+margplot(1)
+```
+
+##### Grouse Creek
+```{r}
+margplot(2)
+```
+
+##### Leidy Creek Mouth
+```{r}
+margplot(3)
+```
+
+##### NF Spread Creek Lower
+```{r}
+margplot(5)
+```
+
+##### NF Spread Creek Upper
+```{r}
+margplot(6)
+```
+
+##### Pacific Creek
+```{r}
+margplot(7)
+```
+
+##### Rock Creek
+```{r}
+margplot(8)
+```
+
+##### SF Spread Creek Lower
+```{r}
+margplot(9)
+```
+
+##### SF Spread Creek Upper
+```{r}
+margplot(10)
+```
+
+##### Spread Creek Dam
+```{r}
+margplot(11)
 ```
 
 :::
 
 
-Interaction heat maps
+#### Site-level effects by covs
+
+Are temp and flow effects correlated? *Yes...do we need to model this correlation?*
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]"))) %>%
+  group_by(Parameter) %>% 
+  summarize(tempeff = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites$site_name) %>%
+  select(-Parameter) %>%
+  left_join(ggfit %>%
+  filter(Parameter %in% c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]"))) %>%
+  group_by(Parameter) %>% 
+  summarize(floweff = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites$site_name) %>%
+    select(-Parameter)) %>%
+  ggplot(aes(x = tempeff, y = floweff)) + geom_point() +
+  geom_smooth(method = "lm") +
+  xlab("Temperature effect") + ylab("Flow effect") +
+  theme_bw() + ggpubr::stat_cor(label.y.npc = "bottom")
+```
+
+*Note that for these 11 sites, catchment area and elevation are correlated*
+```{r}
+dat %>% group_by(site_name) %>% summarize(area_sqmi = unique(area_sqmi), elev_ft = unique(elev_ft)) %>% ggplot(aes(x = elev_ft, y = log(area_sqmi))) + geom_point() + geom_smooth(method = "lm") + theme_bw() + ggpubr::stat_cor(label.x.npc = "center")
+```
+
+
+```{r}
+temp.pars <- c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]", "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]")
+flow.pars <- c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]", "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]")
+int.pars <- c("B.site[1,4]", "B.site[2,4]", "B.site[3,4]", "B.site[4,4]", "B.site[5,4]", "B.site[6,4]", "B.site[7,4]", "B.site[8,4]", "B.site[9,4]", "B.site[10,4]", "B.site[11,4]")
+
+# get mean and 95% credible intervals for random effect parameters
+mytib <- sitecodes %>%
+  mutate(temp.mean = param.summary[temp.pars,1],
+         temp.low = param.summary[temp.pars,3],
+         temp.high = param.summary[temp.pars,7],
+         flow.mean = param.summary[flow.pars,1],
+         flow.low = param.summary[flow.pars,3],
+         flow.high = param.summary[flow.pars,7],
+         int.mean = param.summary[int.pars,1],
+         int.low = param.summary[int.pars,3],
+         int.high = param.summary[int.pars,7],
+         area_log = jags.data$area
+         )
+mytib
+nsims <- 100
+```
+
+
+Temperature effect: stream temperature sensitivity to air temperature is greater in larger catchments (presumably b/c hillslope/groundwater controls on temp are proportionally much weaker). Also, in larger catchments, water has been exposed to air for longer and thus has had more time to equilibrate with local environmental conditions. But interestingly, no effect of mean summer yield, a proxy for relative groundwater contributions to stream flow. 
+```{r}
+xseq <- seq(from = min(jags.data$area), to = max(jags.data$area), length.out = nsims)
+preds <- matrix(data = NA, nrow = dim(Mcmcdat)[1], ncol = nsims)
+
+for (j in 1:dim(Mcmcdat)[1]) {
+  preds[j,] <- unlist(Mcmcdat[j,"alpha.0[2]"]) + unlist(Mcmcdat[j,"alpha.1[2]"])*xseq
+}
+ymean <- apply(preds, 2, mean)
+ylow <- apply(preds, 2, quantile, probs = 0.025)
+yhigh <- apply(preds, 2, quantile, probs = 0.975)
+
+ggplot() +
+  geom_ribbon(aes(x = xseq, ymin = ylow, ymax = yhigh), fill = "grey") +
+  geom_line(aes(x = xseq, y = ymean), color = "black", linewidth = 1, lineend = "round") +
+  geom_errorbar(aes(x = mytib$area_log, ymin = mytib$temp.low, ymax = mytib$temp.high), width = 0.1) +
+  geom_point(aes(x = mytib$area_log, y = mytib$temp.mean), size = 2, shape = 21, fill = "white") +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Catchment area (log scale)") + ylab("Temperature effect (posterior mean)")
+```
+
+Flow effect: in small catchments, increased flow has a warming effect on stream temperature, whereas in large catchments, increased flow has a cooling effect on stream temperature. In small catchments, where proportional contributions from groundwater to streamflow are relatively high, increased flows during snowmelt/runoff warm stream temperatures as snowmelt temperature is warmer than groundwater temperature (???). But in larger catchments where volumetric groundwater contributions are ~low relative to discharge, increased flows during snowmelt cool stream temps as snowmelt temps are colder than ambient air temperatures (which more strongly influence stream temps relative to smaller streams).
+```{r}
+xseq <- seq(from = min(jags.data$area), to = max(jags.data$area), length.out = nsims)
+preds <- matrix(data = NA, nrow = dim(Mcmcdat)[1], ncol = nsims)
+
+for (j in 1:dim(Mcmcdat)[1]) {
+  preds[j,] <- unlist(Mcmcdat[j,"alpha.0[3]"]) + unlist(Mcmcdat[j,"alpha.1[3]"])*xseq
+}
+ymean <- apply(preds, 2, mean)
+ylow <- apply(preds, 2, quantile, probs = 0.025)
+yhigh <- apply(preds, 2, quantile, probs = 0.975)
+
+ggplot() +
+  geom_ribbon(aes(x = xseq, ymin = ylow, ymax = yhigh), fill = "grey") +
+  geom_line(aes(x = xseq, y = ymean), color = "black", linewidth = 1, lineend = "round") +
+  geom_errorbar(aes(x = mytib$area_log, ymin = mytib$flow.low, ymax = mytib$flow.high), width = 0.1) +
+  geom_point(aes(x = mytib$area_log, y = mytib$flow.mean), size = 2, shape = 21, fill = "white") +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Catchment area (log scale)") + ylab("Flow effect (posterior mean)")
+```
+
+Temp-flow interaction: *not sure what this means...*
+```{r}
+xseq <- seq(from = min(jags.data$area), to = max(jags.data$area), length.out = nsims)
+preds <- matrix(data = NA, nrow = dim(Mcmcdat)[1], ncol = nsims)
+
+for (j in 1:dim(Mcmcdat)[1]) {
+  preds[j,] <- unlist(Mcmcdat[j,"alpha.0[4]"]) + unlist(Mcmcdat[j,"alpha.1[4]"])*xseq
+}
+ymean <- apply(preds, 2, mean)
+ylow <- apply(preds, 2, quantile, probs = 0.025)
+yhigh <- apply(preds, 2, quantile, probs = 0.975)
+
+ggplot() +
+  geom_ribbon(aes(x = xseq, ymin = ylow, ymax = yhigh), fill = "grey") +
+  geom_line(aes(x = xseq, y = ymean), color = "black", linewidth = 1, lineend = "round") +
+  geom_errorbar(aes(x = mytib$area_log, ymin = mytib$int.low, ymax = mytib$int.high), width = 0.1) +
+  geom_point(aes(x = mytib$area_log, y = mytib$int.mean), size = 2, shape = 21, fill = "white") +
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Catchment area (log scale)") + ylab("Temp-Flow interaction (posterior mean)")
+```
+
+```{r fig.width=8, fig.height=7}
+x_temp <- seq(from = min(dat$z_air_temp_mean), to = max(dat$z_air_temp_mean), length.out = nsims)
+x_flow <- seq(from = min(dat$z_Yield_mm_log), to = max(dat$z_Yield_mm_log), length.out = nsims)
+pred_df_sm <- expand_grid(x_temp, x_flow)
+pred_df_lg <- expand_grid(x_temp, x_flow)
+
+# small basins
+te <- param.summary["alpha.0[2]",1] + param.summary["alpha.1[2]",1]*min(jags.data$area)
+fe <- param.summary["alpha.0[3]",1] + param.summary["alpha.1[3]",1]*min(jags.data$area)
+tfe <- param.summary["alpha.0[4]",1] + param.summary["alpha.1[4]",1]*min(jags.data$area)
+pred_df_sm$pred <- te*pred_df_sm$x_temp + fe*pred_df_sm$x_flow + tfe*pred_df_sm$x_temp*pred_df_sm$x_flow
+# large basins
+te <- param.summary["alpha.0[2]",1] + param.summary["alpha.1[2]",1]*max(jags.data$area)
+fe <- param.summary["alpha.0[3]",1] + param.summary["alpha.1[3]",1]*max(jags.data$area)
+tfe <- param.summary["alpha.0[4]",1] + param.summary["alpha.1[4]",1]*max(jags.data$area)
+pred_df_lg$pred <- te*pred_df_lg$x_temp + fe*pred_df_lg$x_flow + tfe*pred_df_lg$x_temp*pred_df_lg$x_flow
+
+# plot
+p1sm <- ggplot(pred_df_sm, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+    geom_line() +
+    scale_color_distiller(palette = "BrBG", direction = +1) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature (deviation)") + ylim(-7,7)
+p2sm <- ggplot(pred_df_sm, aes(x = x_temp, y = x_flow)) +
+    geom_tile(aes(fill = pred)) +
+    scale_fill_distiller(palette = "Spectral", limits = c(-7,7)) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+    labs(fill = "Water\ntemp.\ndev.") + xlab("Air temperature") + ylab("Flow")
+# plot
+p1lg <- ggplot(pred_df_lg, aes(x = x_temp, y = pred, color = x_flow, group = x_flow)) +
+    geom_line() +
+    scale_color_distiller(palette = "BrBG", direction = +1) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    labs(color = "Flow") + xlab("Air temperature") + ylab("Water temperature (deviation)") + ylim(-7,7)
+p2lg <- ggplot(pred_df_lg, aes(x = x_temp, y = x_flow)) +
+    geom_tile(aes(fill = pred)) +
+    scale_fill_distiller(palette = "Spectral", limits = c(-7,7)) +
+    theme_bw() + theme(panel.grid = element_blank()) +
+    scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+    labs(fill = "Water\ntemp.\ndev.") + xlab("Air temperature") + ylab("Flow")
+
+egg::ggarrange(p1sm, p2sm, p1lg, p2lg, ncol = 2, nrow = 2, labels = c("small", "small", "large", "large"))
+```
+
+
+
+Temp effect - old
+```{r eval = FALSE}
+mydf <- ggfit %>%
+  filter(Parameter %in% c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,2]", "B.site[2,2]", "B.site[3,2]", "B.site[4,2]", "B.site[5,2]",
+                          "B.site[6,2]", "B.site[7,2]", "B.site[8,2]", "B.site[9,2]", "B.site[10,2]", "B.site[11,2]"))) %>%
+  group_by(Parameter) %>% 
+  summarize(mean = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites$site_name) %>%
+  left_join(dat %>% group_by(site_name) %>% summarize(area_sqmi = unique(area_sqmi))) %>% 
+  left_join(dat %>% mutate(month = month(date)) %>% filter(month %in% c(7:9)) %>% group_by(site_name) %>% summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+  mutate(z_area = scale(area_sqmi), z_yield = scale(meanSummYield))
+
+summary(lm(mean ~ z_area + z_yield, data = mydf))
+
+p1 <- mydf %>%
+  ggplot(aes(x = log(area_sqmi), y = mean)) +
+  geom_point() + geom_smooth(method = "lm") + theme_bw() +
+  xlab("Catchment area (log scale)") + ylab("Temperature effect (posterior mean)") + ggpubr::stat_cor()
+
+p2 <- mydf %>%
+  ggplot(aes(x = log(meanSummYield), y = mean)) +
+  geom_point() + geom_smooth(method = "lm") + theme_bw() +
+  xlab("Mean summer yield (log scale)") + ylab("Temperature effect (posterior mean)") + ggpubr::stat_cor()
+
+ggpubr::ggarrange(p1, p2, nrow = 1)
+```
+
+Flow effect - old
+```{r eval = FALSE}
+mydf <- ggfit %>%
+  filter(Parameter %in% c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("B.site[1,3]", "B.site[2,3]", "B.site[3,3]", "B.site[4,3]", "B.site[5,3]",
+                          "B.site[6,3]", "B.site[7,3]", "B.site[8,3]", "B.site[9,3]", "B.site[10,3]", "B.site[11,3]"))) %>%
+  group_by(Parameter) %>% 
+  summarize(mean = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites$site_name) %>%
+  left_join(dat %>% group_by(site_name) %>% summarize(area_sqmi = unique(area_sqmi))) %>% 
+  left_join(dat %>% mutate(month = month(date)) %>% filter(month %in% c(7:9)) %>% group_by(site_name) %>% summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+  mutate(z_area = scale(area_sqmi), z_yield = scale(meanSummYield))
+
+summary(lm(mean ~ z_area + z_yield, data = mydf))
+
+p1 <- mydf %>%
+  ggplot(aes(x = log(area_sqmi), y = mean)) +
+  geom_point() + geom_smooth(method = "lm") + theme_bw() +
+  xlab("Catchment area (log scale)") + ylab("Flow effect (posterior mean)") + ggpubr::stat_cor(label.y.npc = "bottom")
+
+p2 <- mydf %>%
+  ggplot(aes(x = log(meanSummYield), y = mean)) +
+  geom_point() + geom_smooth(method = "lm") + theme_bw() +
+  xlab("Mean summer yield (log scale)") + ylab("Flow effect (posterior mean)") + ggpubr::stat_cor(label.y.npc = "bottom")
+
+ggpubr::ggarrange(p1, p2, nrow = 1)
+```
+
+
+What does this mean with respect to the effects of (streamflow) drought on spatial variation in stream temperature across river networks? 
+
+* Superficially, during dry years, stream temperatures will warm in larger, lower-elevation rivers (as water temp becomes more responsive to air temp?), while stream temperatures cool in smaller, headwater streams as (cold) groundwater contributions account for an increasingly larger proportion of volumetric discharge.
+* Thus, drought amplifies spatial variability in stream temperature along gradients of stream size (and elevation?)
+
+But what about variation in groundwater availability among headwater streams? And what about spatial variation in the strength of the interaction between flow and temperature? Perhaps dry years amplify spatial variation in water temperature in multiple dimensions: (1) increased divergence in temperature between small and large streams (as discussed above), but also (2) increased divergence in temperature among headwater systems that differ in groundwater availability. 
+

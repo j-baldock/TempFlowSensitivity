@@ -22,6 +22,7 @@ book:
     - Breakpoints.qmd
     - FormatData.qmd
     - ModelTemp-Letcher.qmd
+    - ModelTemp-EcoDrought.qmd
 
 format:
   html:

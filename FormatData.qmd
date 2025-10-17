@@ -43,16 +43,22 @@ dat <- dat %>%
 dat
 ```
 
-Calculate lagged air temperature variables
+Z-score air temp and flow and calculate lagged air temp variables. *Note: air temp and flow are standardized by site.*
 ```{r}
 # ensure proper ordering
 dat <- dat[order(dat$site_name, dat$year, dat$yday),]
 
 # calculate lagged air temp
 dat <- dat %>%
+  mutate(Yield_mm_log = log(Yield_mm + 0.00001),
+         flow_mean_log = log(flow_mean + 0.00001)) %>%
   group_by(site_name) %>%
+  mutate(z_Yield_mm_log = c(scale(Yield_mm_log, center = TRUE, scale = TRUE)),
+         z_air_temp_mean = c(scale(air_temp_mean, center = TRUE, scale = TRUE))) %>%
   mutate(air_temp_mean_lag1 = lag(air_temp_mean, 1),
-         air_temp_mean_lag2 = lag(air_temp_mean, 2)) %>%
+         air_temp_mean_lag2 = lag(air_temp_mean, 2),
+         z_air_temp_mean_lag1 = lag(z_air_temp_mean, n = 1),
+         z_air_temp_mean_lag2 = lag(z_air_temp_mean, n = 2)) %>%
   ungroup()
 ```
 
@@ -94,7 +100,7 @@ dat_bp %>%
   theme_bw() #+ theme(panel.grid = element_blank())
 ```
 
-Create dummy site and basin varibles (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows
+Create dummy site and basin variables (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows
 ```{r}
 # arrange
 dat_bp <- dat_bp %>% arrange(basin, site_name, year, yday)
@@ -113,7 +119,7 @@ dat_bp <- dat_bp %>%
 
 ## Landscape covariates
 
-*To do -- derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percept forest cover, etc.)*
+*To do -- derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percent forest cover, etc.)*
 
 ## Check correlations
 
