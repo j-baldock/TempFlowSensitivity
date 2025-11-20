@@ -389,6 +389,12 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
  <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">ModelTemp - EcoDrought</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ModelTemp-EcoDrought-StdBasin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">ModelTemp - EcoDrought 2</span></span></a>
+  </div>
+</li>
     </ul>
     </div>
 </nav>
@@ -399,7 +405,13 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#base-data" id="toc-base-data" class="nav-link active" data-scroll-target="#base-data"><span class="header-section-number">4.1</span> Base data</a></li>
+  <li><a href="#base-data" id="toc-base-data" class="nav-link active" data-scroll-target="#base-data"><span class="header-section-number">4.1</span> Base data</a>
+  <ul class="collapse">
+  <li><a href="#trim-to-synchronized-period" id="toc-trim-to-synchronized-period" class="nav-link" data-scroll-target="#trim-to-synchronized-period"><span class="header-section-number">4.1.1</span> Trim to synchronized period</a></li>
+  <li><a href="#drop-missing-data" id="toc-drop-missing-data" class="nav-link" data-scroll-target="#drop-missing-data"><span class="header-section-number">4.1.2</span> Drop missing data</a></li>
+  <li><a href="#show-data" id="toc-show-data" class="nav-link" data-scroll-target="#show-data"><span class="header-section-number">4.1.3</span> Show data</a></li>
+  <li><a href="#z-scores-and-dummy-vars." id="toc-z-scores-and-dummy-vars." class="nav-link" data-scroll-target="#z-scores-and-dummy-vars."><span class="header-section-number">4.1.4</span> Z-scores and dummy vars.</a></li>
+  </ul></li>
   <li><a href="#landscape-covariates" id="toc-landscape-covariates" class="nav-link" data-scroll-target="#landscape-covariates"><span class="header-section-number">4.2</span> Landscape covariates</a></li>
   <li><a href="#check-correlations" id="toc-check-correlations" class="nav-link" data-scroll-target="#check-correlations"><span class="header-section-number">4.3</span> Check correlations</a></li>
   <li><a href="#write-to-file" id="toc-write-to-file" class="nav-link" data-scroll-target="#write-to-file"><span class="header-section-number">4.4</span> Write to file</a></li>
@@ -502,7 +514,7 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 #   swe_kgm2 &lt;dbl&gt;, daylength_sec &lt;dbl&gt;, shortrad_wm2 &lt;dbl&gt;</code></pre>
 </div>
 </div>
-<p>Z-score air temp and flow and calculate lagged air temp variables. <em>Note: air temp and flow are standardized by site.</em></p>
+<p>Calculate lagged air temp variables, logged flow variables, and daily change in SWE.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -514,16 +526,15 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Yield_mm_log =</span> <span class="fu">log</span>(Yield_mm <span class="sc">+</span> <span class="fl">0.00001</span>),</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">flow_mean_log =</span> <span class="fu">log</span>(flow_mean <span class="sc">+</span> <span class="fl">0.00001</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">z_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>))) <span class="sc">%&gt;%</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">air_temp_mean_lag1 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">1</span>),</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>         <span class="at">air_temp_mean_lag2 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">2</span>),</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag1 =</span> <span class="fu">lag</span>(z_air_temp_mean, <span class="at">n =</span> <span class="dv">1</span>),</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag2 =</span> <span class="fu">lag</span>(z_air_temp_mean, <span class="at">n =</span> <span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">air_temp_mean_lag1 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">1</span>),</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">air_temp_mean_lag2 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">2</span>),</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">delta_swe =</span> swe_kgm2 <span class="sc">-</span> <span class="fu">lag</span>(swe_kgm2, <span class="dv">1</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>Breakpoints</p>
+<section id="trim-to-synchronized-period" class="level3" data-number="4.1.1">
+<h3 data-number="4.1.1" class="anchored" data-anchor-id="trim-to-synchronized-period"><span class="header-section-number">4.1.1</span> Trim to synchronized period</h3>
+<p>Load breakpoints</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -581,12 +592,29 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 #   z_air_temp_mean_lag1 &lt;dbl&gt;, z_air_temp_mean_lag2 &lt;dbl&gt;, …</code></pre>
 </div>
 </div>
-<p>Show the distribution of the number of temperature observations (non-NA) per site-year</p>
+</section>
+<section id="drop-missing-data" class="level3" data-number="4.1.2">
+<h3 data-number="4.1.2" class="anchored" data-anchor-id="drop-missing-data"><span class="header-section-number">4.1.2</span> Drop missing data</h3>
+<p>Show the distribution of the number of stream temp/flow observations (non-NA) per site-year…<em>many years with poor data coverage, especially with respect to flow</em></p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>obspersy <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(siteYear) <span class="sc">%&gt;%</span> <span class="fu">summarize</span>(<span class="at">numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean))) <span class="sc">%&gt;%</span> <span class="fu">ungroup</span>()</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>obspersy <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(siteYear) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">streamtemp_numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean)),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">flow_numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(Yield_mm))) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span>(<span class="fu">dim</span>(obspersy)[<span class="dv">1</span>], <span class="st">" total site-years"</span>, <span class="at">sep =</span> <span class="st">""</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "459 total site-years"</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>ggpubr<span class="sc">::</span><span class="fu">ggarrange</span>(obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> streamtemp_numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">xlab</span>(<span class="st">"Number of stream temp. observations"</span>),</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                  obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> flow_numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">xlab</span>(<span class="st">"Number of flow observations"</span>), </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">nrow =</span> <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -596,51 +624,107 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 </div>
 </div>
 </div>
-<p>Drop siteYears with less than 10 days of temperature observations</p>
+<p>Drop siteYears with less than 50 days of stream temp./flow observations</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>drops <span class="ot">&lt;-</span> obspersy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(numobs <span class="sc">&lt;</span> <span class="dv">10</span>)</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>siteYear <span class="sc">%in%</span> drops<span class="sc">$</span>siteYear)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>drops <span class="ot">&lt;-</span> obspersy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(streamtemp_numobs <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">|</span> flow_numobs <span class="sc">&lt;</span> <span class="dv">50</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span>(<span class="fu">dim</span>(obspersy)[<span class="dv">1</span>]<span class="sc">-</span><span class="fu">dim</span>(drops)[<span class="dv">1</span>], <span class="st">" filtered site-years"</span>, <span class="at">sep =</span> <span class="st">""</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "328 filtered site-years"</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>siteYear <span class="sc">%in%</span> drops<span class="sc">$</span>siteYear)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
+<p>Now drop days with missing stream temperature data</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="show-data" class="level3" data-number="4.1.3">
+<h3 data-number="4.1.3" class="anchored" data-anchor-id="show-data"><span class="header-section-number">4.1.3</span> Show data</h3>
 <p>Plot temp data with LOESS to show seasonal hysteresis</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="sc">%&gt;%</span> </span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span> </span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">factor</span>(basin, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span>))) <span class="sc">+</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">color =</span> <span class="st">"red"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="co">#+ theme(panel.grid = element_blank())</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="sc">%&gt;%</span> </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span> </span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">factor</span>(basin, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span>))) <span class="sc">+</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">color =</span> <span class="st">"red"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="co">#+ theme(panel.grid = element_blank())</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="FormatData_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="FormatData_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
+</div>
+</section>
+<section id="z-scores-and-dummy-vars." class="level3" data-number="4.1.4">
+<h3 data-number="4.1.4" class="anchored" data-anchor-id="z-scores-and-dummy-vars."><span class="header-section-number">4.1.4</span> Z-scores and dummy vars.</h3>
+<p>Z-score air temp, flow, and day of year. <em>Note: variables are standardized both by site (“z_…”) and by basin (“zbas_…”).</em></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate lagged air temp</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">z_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag1 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag1, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)), <span class="co">#lag(z_air_temp_mean, n = 1),</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag2 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag2, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)) <span class="co">#lag(z_air_temp_mean, n = 2),</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>         <span class="co">#z_yday = c(scale(yday, center = TRUE, scale = TRUE))</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>         ) <span class="sc">%&gt;%</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(basin) <span class="sc">%&gt;%</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zbas_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean_lag1 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag1, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)), <span class="co">#lag(zbas_air_temp_mean, n = 1),</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean_lag2 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag2, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)) <span class="co">#lag(zbas_air_temp_mean, n = 2),</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>         <span class="co">#zbas_yday = c(scale(yday, center = TRUE, scale = TRUE))</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>         ) <span class="sc">%&gt;%</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
 <p>Create dummy site and basin variables (numeric for JAGS), and define “rowNum” variable to allow for identifying first rows and evaluation rows</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(basin, site_name, year, yday)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># create tibbles of site and basin numeric codes</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>sitecodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">site_name =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name), <span class="at">site_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name)))</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>basincodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">basin =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin), <span class="at">basin_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin)))</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co"># join to data</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sitecodes) <span class="sc">%&gt;%</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(basincodes) <span class="sc">%&gt;%</span></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rowNum =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(.))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># # Drop sites without any flow or water temp observations</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># dropsites &lt;- unlist(dat_bp %&gt;% </span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">#   group_by(site_name) %&gt;% </span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">#   summarize(numt = sum(!is.na(tempc_mean)), </span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">#             numf = sum(!is.na(z_Yield_mm_log))) %&gt;% </span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   ungroup() %&gt;%</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(numt == 0 | numf == 0) %&gt;%</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(site_name))</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co"># dat_bp &lt;- dat_bp %&gt;% filter(!site_name %in% dropsites)</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(basin, site_name, year, yday)</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co"># create tibbles of site and basin numeric codes</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>sitecodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">site_name =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name), <span class="at">site_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name)))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>basincodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">basin =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin), <span class="at">basin_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin)))</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co"># join to data and define row number</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sitecodes) <span class="sc">%&gt;%</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(basincodes) <span class="sc">%&gt;%</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rowNum =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(.))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
+</section>
 </section>
 <section id="landscape-covariates" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="landscape-covariates"><span class="header-section-number">4.2</span> Landscape covariates</h2>
@@ -655,7 +739,7 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 
@@ -1140,139 +1224,193 @@ octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb15" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Format Data"</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>**Purpose:** Format data for modeling in JAGS</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="in">```{r include=FALSE}</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="co">#library(nlme)</span></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># library(devtools)</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co"># #install_github("conteStreamTemperature", username = "Conte-Ecology")</span></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co"># library(conteStreamTemperature)</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## Base data</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>Temperature and flow data</span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/EcoDrought_FlowTempData_DailyWeekly_clean.csv"</span>)</span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>dat</span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>Fix basins and trim to focal variables.</span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>mysitebasins <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
-<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">basin =</span> <span class="fu">unique</span>(basin),</span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>            <span class="at">lat =</span> <span class="fu">unique</span>(lat), </span>
-<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>            <span class="at">long =</span> <span class="fu">unique</span>(long), </span>
-<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>            <span class="at">elev_ft =</span> <span class="fu">unique</span>(elev_ft),</span>
-<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>            <span class="at">area_sqmi =</span> <span class="fu">unique</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(basin), <span class="sc">!</span><span class="fu">is.na</span>(lat), <span class="sc">!</span><span class="fu">is.na</span>(long), <span class="sc">!</span><span class="fu">is.na</span>(elev_ft), <span class="sc">!</span><span class="fu">is.na</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
-<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
-<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(basin, lat, long, elev_ft, area_sqmi)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(mysitebasins) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(site_name, basin, lat, long, elev_ft, area_sqmi, date, yday, year, siteYear, </span>
-<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a>         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2)</span>
-<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a>dat</span>
-<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>Z-score air temp and flow and calculate lagged air temp variables. *Note: air temp and flow are standardized by site.*</span>
-<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure proper ordering</span></span>
-<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat[<span class="fu">order</span>(dat<span class="sc">$</span>site_name, dat<span class="sc">$</span>year, dat<span class="sc">$</span>yday),]</span>
-<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate lagged air temp</span></span>
-<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span></span>
-<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Yield_mm_log =</span> <span class="fu">log</span>(Yield_mm <span class="sc">+</span> <span class="fl">0.00001</span>),</span>
-<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a>         <span class="at">flow_mean_log =</span> <span class="fu">log</span>(flow_mean <span class="sc">+</span> <span class="fl">0.00001</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
-<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">z_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
-<span id="cb15-63"><a href="#cb15-63" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>))) <span class="sc">%&gt;%</span></span>
-<span id="cb15-64"><a href="#cb15-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">air_temp_mean_lag1 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">1</span>),</span>
-<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a>         <span class="at">air_temp_mean_lag2 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">2</span>),</span>
-<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag1 =</span> <span class="fu">lag</span>(z_air_temp_mean, <span class="at">n =</span> <span class="dv">1</span>),</span>
-<span id="cb15-67"><a href="#cb15-67" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag2 =</span> <span class="fu">lag</span>(z_air_temp_mean, <span class="at">n =</span> <span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-68"><a href="#cb15-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb15-69"><a href="#cb15-69" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-70"><a href="#cb15-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-71"><a href="#cb15-71" aria-hidden="true" tabindex="-1"></a>Breakpoints</span>
-<span id="cb15-74"><a href="#cb15-74" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-75"><a href="#cb15-75" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/breakpoints.csv"</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-76"><a href="#cb15-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
-<span id="cb15-77"><a href="#cb15-77" aria-hidden="true" tabindex="-1"></a>springFallBPs</span>
-<span id="cb15-78"><a href="#cb15-78" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-80"><a href="#cb15-80" aria-hidden="true" tabindex="-1"></a>Join temp/flow data with breakpoints and filter to days within synchronized period. </span>
-<span id="cb15-83"><a href="#cb15-83" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-84"><a href="#cb15-84" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
-<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(springFallBPs) <span class="sc">%&gt;%</span></span>
-<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(yday <span class="sc">&gt;=</span> finalSpringBP <span class="sc">&amp;</span> yday <span class="sc">&lt;=</span> finalFallBP)</span>
-<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a>dat_bp</span>
-<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>Show the distribution of the number of temperature observations (non-NA) per site-year</span>
-<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>obspersy <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(siteYear) <span class="sc">%&gt;%</span> <span class="fu">summarize</span>(<span class="at">numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean))) <span class="sc">%&gt;%</span> <span class="fu">ungroup</span>()</span>
-<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>()</span>
-<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-97"><a href="#cb15-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a>Drop siteYears with less than 10 days of temperature observations</span>
-<span id="cb15-101"><a href="#cb15-101" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-102"><a href="#cb15-102" aria-hidden="true" tabindex="-1"></a>drops <span class="ot">&lt;-</span> obspersy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(numobs <span class="sc">&lt;</span> <span class="dv">10</span>)</span>
-<span id="cb15-103"><a href="#cb15-103" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>siteYear <span class="sc">%in%</span> drops<span class="sc">$</span>siteYear)</span>
-<span id="cb15-104"><a href="#cb15-104" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-107"><a href="#cb15-107" aria-hidden="true" tabindex="-1"></a>Plot temp data with LOESS to show seasonal hysteresis</span>
-<span id="cb15-108"><a href="#cb15-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=7, fig.height=7}</span></span>
-<span id="cb15-109"><a href="#cb15-109" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="sc">%&gt;%</span> </span>
-<span id="cb15-110"><a href="#cb15-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span> </span>
-<span id="cb15-111"><a href="#cb15-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
-<span id="cb15-112"><a href="#cb15-112" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">factor</span>(basin, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span>))) <span class="sc">+</span></span>
-<span id="cb15-113"><a href="#cb15-113" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">color =</span> <span class="st">"red"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="co">#+ theme(panel.grid = element_blank())</span></span>
-<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a>Create dummy site and basin variables (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows</span>
-<span id="cb15-120"><a href="#cb15-120" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange</span></span>
-<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(basin, site_name, year, yday)</span>
-<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-124"><a href="#cb15-124" aria-hidden="true" tabindex="-1"></a><span class="co"># create tibbles of site and basin numeric codes</span></span>
-<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a>sitecodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">site_name =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name), <span class="at">site_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name)))</span>
-<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a>basincodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">basin =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin), <span class="at">basin_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin)))</span>
-<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a><span class="co"># join to data</span></span>
-<span id="cb15-129"><a href="#cb15-129" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
-<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sitecodes) <span class="sc">%&gt;%</span></span>
-<span id="cb15-131"><a href="#cb15-131" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(basincodes) <span class="sc">%&gt;%</span></span>
-<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rowNum =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(.))</span>
-<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-134"><a href="#cb15-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-135"><a href="#cb15-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a><span class="fu">## Landscape covariates</span></span>
-<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a>*To do -- derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percent forest cover, etc.)*</span>
-<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-140"><a href="#cb15-140" aria-hidden="true" tabindex="-1"></a><span class="fu">## Check correlations</span></span>
-<span id="cb15-141"><a href="#cb15-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-142"><a href="#cb15-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a><span class="fu">## Write to file</span></span>
-<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a>Write formatted data to file</span>
-<span id="cb15-148"><a href="#cb15-148" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-149"><a href="#cb15-149" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span>
-<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a></span>
+<div class="sourceCode" id="cb21" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Format Data"</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>**Purpose:** Format data for modeling in JAGS</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="in">```{r include=FALSE}</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co">#library(nlme)</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="co"># library(devtools)</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="co"># #install_github("conteStreamTemperature", username = "Conte-Ecology")</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co"># library(conteStreamTemperature)</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## Base data</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>Temperature and flow data</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/EcoDrought_FlowTempData_DailyWeekly_clean.csv"</span>)</span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>dat</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>Fix basins and trim to focal variables.</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>mysitebasins <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">basin =</span> <span class="fu">unique</span>(basin),</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>            <span class="at">lat =</span> <span class="fu">unique</span>(lat), </span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>            <span class="at">long =</span> <span class="fu">unique</span>(long), </span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>            <span class="at">elev_ft =</span> <span class="fu">unique</span>(elev_ft),</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>            <span class="at">area_sqmi =</span> <span class="fu">unique</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(basin), <span class="sc">!</span><span class="fu">is.na</span>(lat), <span class="sc">!</span><span class="fu">is.na</span>(long), <span class="sc">!</span><span class="fu">is.na</span>(elev_ft), <span class="sc">!</span><span class="fu">is.na</span>(area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(basin, lat, long, elev_ft, area_sqmi)) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(mysitebasins) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(site_name, basin, lat, long, elev_ft, area_sqmi, date, yday, year, siteYear, </span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>         tempc_mean, tempc_min, tempc_max, flow_mean, Yield_mm, air_temp_mean, precip_mmday, swe_kgm2, daylength_sec, shortrad_wm2)</span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a>dat</span>
+<span id="cb21-48"><a href="#cb21-48" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-49"><a href="#cb21-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-50"><a href="#cb21-50" aria-hidden="true" tabindex="-1"></a>Calculate lagged air temp variables, logged flow variables, and daily change in SWE.</span>
+<span id="cb21-53"><a href="#cb21-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-54"><a href="#cb21-54" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure proper ordering</span></span>
+<span id="cb21-55"><a href="#cb21-55" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat[<span class="fu">order</span>(dat<span class="sc">$</span>site_name, dat<span class="sc">$</span>year, dat<span class="sc">$</span>yday),]</span>
+<span id="cb21-56"><a href="#cb21-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-57"><a href="#cb21-57" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate lagged air temp</span></span>
+<span id="cb21-58"><a href="#cb21-58" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span></span>
+<span id="cb21-59"><a href="#cb21-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Yield_mm_log =</span> <span class="fu">log</span>(Yield_mm <span class="sc">+</span> <span class="fl">0.00001</span>),</span>
+<span id="cb21-60"><a href="#cb21-60" aria-hidden="true" tabindex="-1"></a>         <span class="at">flow_mean_log =</span> <span class="fu">log</span>(flow_mean <span class="sc">+</span> <span class="fl">0.00001</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb21-61"><a href="#cb21-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
+<span id="cb21-62"><a href="#cb21-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">air_temp_mean_lag1 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">1</span>),</span>
+<span id="cb21-63"><a href="#cb21-63" aria-hidden="true" tabindex="-1"></a>         <span class="at">air_temp_mean_lag2 =</span> <span class="fu">lag</span>(air_temp_mean, <span class="dv">2</span>),</span>
+<span id="cb21-64"><a href="#cb21-64" aria-hidden="true" tabindex="-1"></a>         <span class="at">delta_swe =</span> swe_kgm2 <span class="sc">-</span> <span class="fu">lag</span>(swe_kgm2, <span class="dv">1</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb21-65"><a href="#cb21-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb21-66"><a href="#cb21-66" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-67"><a href="#cb21-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-68"><a href="#cb21-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-69"><a href="#cb21-69" aria-hidden="true" tabindex="-1"></a><span class="fu">### Trim to synchronized period</span></span>
+<span id="cb21-70"><a href="#cb21-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-71"><a href="#cb21-71" aria-hidden="true" tabindex="-1"></a>Load breakpoints</span>
+<span id="cb21-74"><a href="#cb21-74" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-75"><a href="#cb21-75" aria-hidden="true" tabindex="-1"></a>springFallBPs <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/breakpoints.csv"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-76"><a href="#cb21-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">basin =</span> <span class="fu">recode</span>(basin, <span class="st">"Shields River"</span> <span class="ot">=</span> <span class="st">"Yellowstone"</span>))</span>
+<span id="cb21-77"><a href="#cb21-77" aria-hidden="true" tabindex="-1"></a>springFallBPs</span>
+<span id="cb21-78"><a href="#cb21-78" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-79"><a href="#cb21-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-80"><a href="#cb21-80" aria-hidden="true" tabindex="-1"></a>Join temp/flow data with breakpoints and filter to days within synchronized period.</span>
+<span id="cb21-83"><a href="#cb21-83" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-84"><a href="#cb21-84" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span> </span>
+<span id="cb21-85"><a href="#cb21-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(springFallBPs) <span class="sc">%&gt;%</span></span>
+<span id="cb21-86"><a href="#cb21-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(yday <span class="sc">&gt;=</span> finalSpringBP <span class="sc">&amp;</span> yday <span class="sc">&lt;=</span> finalFallBP)</span>
+<span id="cb21-87"><a href="#cb21-87" aria-hidden="true" tabindex="-1"></a>dat_bp</span>
+<span id="cb21-88"><a href="#cb21-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-89"><a href="#cb21-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-90"><a href="#cb21-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-91"><a href="#cb21-91" aria-hidden="true" tabindex="-1"></a><span class="fu">### Drop missing data</span></span>
+<span id="cb21-92"><a href="#cb21-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-93"><a href="#cb21-93" aria-hidden="true" tabindex="-1"></a>Show the distribution of the number of stream temp/flow observations (non-NA) per site-year...*many years with poor data coverage, especially with respect to flow*</span>
+<span id="cb21-96"><a href="#cb21-96" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-97"><a href="#cb21-97" aria-hidden="true" tabindex="-1"></a>obspersy <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> </span>
+<span id="cb21-98"><a href="#cb21-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(siteYear) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-99"><a href="#cb21-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">streamtemp_numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean)),</span>
+<span id="cb21-100"><a href="#cb21-100" aria-hidden="true" tabindex="-1"></a>            <span class="at">flow_numobs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(Yield_mm))) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-101"><a href="#cb21-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb21-102"><a href="#cb21-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-103"><a href="#cb21-103" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span>(<span class="fu">dim</span>(obspersy)[<span class="dv">1</span>], <span class="st">" total site-years"</span>, <span class="at">sep =</span> <span class="st">""</span>)</span>
+<span id="cb21-104"><a href="#cb21-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-105"><a href="#cb21-105" aria-hidden="true" tabindex="-1"></a>ggpubr<span class="sc">::</span><span class="fu">ggarrange</span>(obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> streamtemp_numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">xlab</span>(<span class="st">"Number of stream temp. observations"</span>),</span>
+<span id="cb21-106"><a href="#cb21-106" aria-hidden="true" tabindex="-1"></a>                  obspersy <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> flow_numobs)) <span class="sc">+</span> <span class="fu">theme_bw</span>() <span class="sc">+</span> <span class="fu">xlab</span>(<span class="st">"Number of flow observations"</span>), </span>
+<span id="cb21-107"><a href="#cb21-107" aria-hidden="true" tabindex="-1"></a>                  <span class="at">nrow =</span> <span class="dv">1</span>)</span>
+<span id="cb21-108"><a href="#cb21-108" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-109"><a href="#cb21-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-110"><a href="#cb21-110" aria-hidden="true" tabindex="-1"></a>Drop siteYears with less than 50 days of stream temp./flow observations</span>
+<span id="cb21-113"><a href="#cb21-113" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-114"><a href="#cb21-114" aria-hidden="true" tabindex="-1"></a>drops <span class="ot">&lt;-</span> obspersy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(streamtemp_numobs <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">|</span> flow_numobs <span class="sc">&lt;</span> <span class="dv">50</span>)</span>
+<span id="cb21-115"><a href="#cb21-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-116"><a href="#cb21-116" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span>(<span class="fu">dim</span>(obspersy)[<span class="dv">1</span>]<span class="sc">-</span><span class="fu">dim</span>(drops)[<span class="dv">1</span>], <span class="st">" filtered site-years"</span>, <span class="at">sep =</span> <span class="st">""</span>)</span>
+<span id="cb21-117"><a href="#cb21-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-118"><a href="#cb21-118" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>siteYear <span class="sc">%in%</span> drops<span class="sc">$</span>siteYear)</span>
+<span id="cb21-119"><a href="#cb21-119" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-120"><a href="#cb21-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-121"><a href="#cb21-121" aria-hidden="true" tabindex="-1"></a>Now drop days with missing stream temperature data</span>
+<span id="cb21-124"><a href="#cb21-124" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-125"><a href="#cb21-125" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(tempc_mean))</span>
+<span id="cb21-126"><a href="#cb21-126" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-127"><a href="#cb21-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-128"><a href="#cb21-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-129"><a href="#cb21-129" aria-hidden="true" tabindex="-1"></a><span class="fu">### Show data</span></span>
+<span id="cb21-130"><a href="#cb21-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-131"><a href="#cb21-131" aria-hidden="true" tabindex="-1"></a>Plot temp data with LOESS to show seasonal hysteresis</span>
+<span id="cb21-132"><a href="#cb21-132" aria-hidden="true" tabindex="-1"></a><span class="in">```{r fig.width=7, fig.height=7}</span></span>
+<span id="cb21-133"><a href="#cb21-133" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="sc">%&gt;%</span> </span>
+<span id="cb21-134"><a href="#cb21-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> yday, <span class="at">y =</span> tempc_mean)) <span class="sc">+</span> </span>
+<span id="cb21-135"><a href="#cb21-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb21-136"><a href="#cb21-136" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">factor</span>(basin, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"West Brook"</span>, <span class="st">"Staunton River"</span>, <span class="st">"Paine Run"</span>, <span class="st">"Flathead"</span>, <span class="st">"Yellowstone"</span>, <span class="st">"Snake River"</span>, <span class="st">"Donner Blitzen"</span>))) <span class="sc">+</span></span>
+<span id="cb21-137"><a href="#cb21-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">color =</span> <span class="st">"red"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb21-138"><a href="#cb21-138" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="co">#+ theme(panel.grid = element_blank())</span></span>
+<span id="cb21-139"><a href="#cb21-139" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-140"><a href="#cb21-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-141"><a href="#cb21-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-142"><a href="#cb21-142" aria-hidden="true" tabindex="-1"></a><span class="fu">### Z-scores and dummy vars.</span></span>
+<span id="cb21-143"><a href="#cb21-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-144"><a href="#cb21-144" aria-hidden="true" tabindex="-1"></a>Z-score air temp, flow, and day of year. *Note: variables are standardized both by site ("z_...") and by basin ("zbas_...").*</span>
+<span id="cb21-147"><a href="#cb21-147" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-148"><a href="#cb21-148" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate lagged air temp</span></span>
+<span id="cb21-149"><a href="#cb21-149" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
+<span id="cb21-150"><a href="#cb21-150" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(site_name) <span class="sc">%&gt;%</span></span>
+<span id="cb21-151"><a href="#cb21-151" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">z_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb21-152"><a href="#cb21-152" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb21-153"><a href="#cb21-153" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag1 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag1, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)), <span class="co">#lag(z_air_temp_mean, n = 1),</span></span>
+<span id="cb21-154"><a href="#cb21-154" aria-hidden="true" tabindex="-1"></a>         <span class="at">z_air_temp_mean_lag2 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag2, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)) <span class="co">#lag(z_air_temp_mean, n = 2),</span></span>
+<span id="cb21-155"><a href="#cb21-155" aria-hidden="true" tabindex="-1"></a>         <span class="co">#z_yday = c(scale(yday, center = TRUE, scale = TRUE))</span></span>
+<span id="cb21-156"><a href="#cb21-156" aria-hidden="true" tabindex="-1"></a>         ) <span class="sc">%&gt;%</span></span>
+<span id="cb21-157"><a href="#cb21-157" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb21-158"><a href="#cb21-158" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(basin) <span class="sc">%&gt;%</span></span>
+<span id="cb21-159"><a href="#cb21-159" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zbas_Yield_mm_log =</span> <span class="fu">c</span>(<span class="fu">scale</span>(Yield_mm_log, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb21-160"><a href="#cb21-160" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb21-161"><a href="#cb21-161" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean_lag1 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag1, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)), <span class="co">#lag(zbas_air_temp_mean, n = 1),</span></span>
+<span id="cb21-162"><a href="#cb21-162" aria-hidden="true" tabindex="-1"></a>         <span class="at">zbas_air_temp_mean_lag2 =</span> <span class="fu">c</span>(<span class="fu">scale</span>(air_temp_mean_lag2, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">TRUE</span>)) <span class="co">#lag(zbas_air_temp_mean, n = 2),</span></span>
+<span id="cb21-163"><a href="#cb21-163" aria-hidden="true" tabindex="-1"></a>         <span class="co">#zbas_yday = c(scale(yday, center = TRUE, scale = TRUE))</span></span>
+<span id="cb21-164"><a href="#cb21-164" aria-hidden="true" tabindex="-1"></a>         ) <span class="sc">%&gt;%</span></span>
+<span id="cb21-165"><a href="#cb21-165" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb21-166"><a href="#cb21-166" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-167"><a href="#cb21-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-168"><a href="#cb21-168" aria-hidden="true" tabindex="-1"></a>Create dummy site and basin variables (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows</span>
+<span id="cb21-171"><a href="#cb21-171" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-172"><a href="#cb21-172" aria-hidden="true" tabindex="-1"></a><span class="co"># # Drop sites without any flow or water temp observations</span></span>
+<span id="cb21-173"><a href="#cb21-173" aria-hidden="true" tabindex="-1"></a><span class="co"># dropsites &lt;- unlist(dat_bp %&gt;% </span></span>
+<span id="cb21-174"><a href="#cb21-174" aria-hidden="true" tabindex="-1"></a><span class="co">#   group_by(site_name) %&gt;% </span></span>
+<span id="cb21-175"><a href="#cb21-175" aria-hidden="true" tabindex="-1"></a><span class="co">#   summarize(numt = sum(!is.na(tempc_mean)), </span></span>
+<span id="cb21-176"><a href="#cb21-176" aria-hidden="true" tabindex="-1"></a><span class="co">#             numf = sum(!is.na(z_Yield_mm_log))) %&gt;% </span></span>
+<span id="cb21-177"><a href="#cb21-177" aria-hidden="true" tabindex="-1"></a><span class="co">#   ungroup() %&gt;%</span></span>
+<span id="cb21-178"><a href="#cb21-178" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(numt == 0 | numf == 0) %&gt;%</span></span>
+<span id="cb21-179"><a href="#cb21-179" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(site_name))</span></span>
+<span id="cb21-180"><a href="#cb21-180" aria-hidden="true" tabindex="-1"></a><span class="co"># dat_bp &lt;- dat_bp %&gt;% filter(!site_name %in% dropsites)</span></span>
+<span id="cb21-181"><a href="#cb21-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-182"><a href="#cb21-182" aria-hidden="true" tabindex="-1"></a><span class="co"># arrange</span></span>
+<span id="cb21-183"><a href="#cb21-183" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(basin, site_name, year, yday)</span>
+<span id="cb21-184"><a href="#cb21-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-185"><a href="#cb21-185" aria-hidden="true" tabindex="-1"></a><span class="co"># create tibbles of site and basin numeric codes</span></span>
+<span id="cb21-186"><a href="#cb21-186" aria-hidden="true" tabindex="-1"></a>sitecodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">site_name =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name), <span class="at">site_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>site_name)))</span>
+<span id="cb21-187"><a href="#cb21-187" aria-hidden="true" tabindex="-1"></a>basincodes <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">basin =</span> <span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin), <span class="at">basin_code =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(<span class="fu">unique</span>(dat_bp<span class="sc">$</span>basin)))</span>
+<span id="cb21-188"><a href="#cb21-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-189"><a href="#cb21-189" aria-hidden="true" tabindex="-1"></a><span class="co"># join to data and define row number</span></span>
+<span id="cb21-190"><a href="#cb21-190" aria-hidden="true" tabindex="-1"></a>dat_bp <span class="ot">&lt;-</span> dat_bp <span class="sc">%&gt;%</span></span>
+<span id="cb21-191"><a href="#cb21-191" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sitecodes) <span class="sc">%&gt;%</span></span>
+<span id="cb21-192"><a href="#cb21-192" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(basincodes) <span class="sc">%&gt;%</span></span>
+<span id="cb21-193"><a href="#cb21-193" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rowNum =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(.))</span>
+<span id="cb21-194"><a href="#cb21-194" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb21-195"><a href="#cb21-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-196"><a href="#cb21-196" aria-hidden="true" tabindex="-1"></a><span class="fu">## Landscape covariates</span></span>
+<span id="cb21-197"><a href="#cb21-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-198"><a href="#cb21-198" aria-hidden="true" tabindex="-1"></a>*To do -- derive additional landscape covariates presumed to affect stream temperature, or rather, mediate the relationship between stream and air temperature/flow (groundwater influence/pasta?, basin slope, lake area, percent forest cover, etc.)*</span>
+<span id="cb21-199"><a href="#cb21-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-200"><a href="#cb21-200" aria-hidden="true" tabindex="-1"></a><span class="fu">## Check correlations</span></span>
+<span id="cb21-201"><a href="#cb21-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-202"><a href="#cb21-202" aria-hidden="true" tabindex="-1"></a><span class="fu">## Write to file</span></span>
+<span id="cb21-203"><a href="#cb21-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-204"><a href="#cb21-204" aria-hidden="true" tabindex="-1"></a>Write formatted data to file</span>
+<span id="cb21-207"><a href="#cb21-207" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb21-208"><a href="#cb21-208" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dat_bp, <span class="st">"data/EcoDrought_FlowTempData_formatted.csv"</span>)</span>
+<span id="cb21-209"><a href="#cb21-209" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

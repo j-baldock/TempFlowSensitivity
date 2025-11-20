@@ -8,10 +8,9 @@ model {
     for (i in 1:nFirstObsRows){
       temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
       stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
-      trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + 
-                                inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ]) + 
-                                inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
-      #X.site[firstObsRows[i], ] ~ dnorm(0, pow(1, -2))
+      trend[firstObsRows[i]] <- #inprod(B.0[], X.0[firstObsRows[i], ]) + 
+                                inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ]) #+ 
+                                #inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
       }
     
     # Days with an observation on the previous dat (all days following the first day)
@@ -20,12 +19,23 @@ model {
     for (i in 1:nEvalRows){ 
       temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
       stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
-      trend[evalRows[i]] <- inprod(B.0[], X.0[evalRows[i], ]) + 
-                            inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ]) + 
-                            inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
-      #X.site[evalRows[i], ] ~ dnorm(0, pow(1, -2))
+      trend[evalRows[i]] <- #inprod(B.0[], X.0[evalRows[i], ]) + 
+                            inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ]) #+ 
+                            #inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
       }
     
+    
+    # Deal with missing data
+    for (i in 1:n){
+      for (k in 1:Krandom) {
+        X.site[i,k] ~ dnorm(0, pow(1, -2))
+      }
+    }
+    
+    # Save log-likelihoods for LOO-CV
+    for (i in 1:n) {
+      loglik[i] <- logdensity.norm(temp[i], stream.mu[i], pow(sigma, -2))
+    }
     
     ###----------------- PRIORS ---------------------###
     
@@ -42,28 +52,28 @@ model {
     
     
     # fixed effect coefficients
-    for (k in 1:Kfixed) {
-      B.0[k] ~ dnorm(0, 0.001)
-      }
+    # for (k in 1:Kfixed) {
+    #   B.0[k] ~ dnorm(0, 0.001)
+    #   }
       
     # random effect coefficients (by site)
     for (k in 1:Krandom) {
       sigma.B.site[k] ~ dunif(0, 100)
-      alpha.0[k] ~ dnorm(0, pow(10, -2))
-      alpha.1[k] ~ dnorm(0, pow(10, -2))
+      #alpha.0[k] ~ dnorm(0, pow(10, -2))
+      #alpha.1[k] ~ dnorm(0, pow(10, -2))
       for (i in 1:nsites) {
-        B.site[i,k] ~ dnorm(mu.B.site[i,k], pow(sigma.B.site[k], -2))
-        mu.B.site[i,k] <- alpha.0[k] + alpha.1[k] * area[i]
+        B.site[i,k] ~ dnorm(0, pow(sigma.B.site[k], -2))
+        #mu.B.site[i,k] <- alpha.0[k] + alpha.1[k] * area[i]
       }
     }
     
     # YEAR EFFECTS
-    for(l in 1:L) {
-      sigma.b.year[l] ~ dunif(0, 100)
-      for(t in 1:Ti){
-        B.year[t, l] ~ dnorm(0, pow(sigma.b.year[l], -2))
-        }
-      }
+    # for(l in 1:L) {
+    #   sigma.b.year[l] ~ dunif(0, 100)
+    #   for(t in 1:Ti){
+    #     B.year[t, l] ~ dnorm(0, pow(sigma.b.year[l], -2))
+    #     }
+    #   }
     
     # # YEAR EFFECTS
     # # Priors for random effects of year

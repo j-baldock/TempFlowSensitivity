@@ -43,7 +43,7 @@ dat <- dat %>%
 dat
 ```
 
-Z-score air temp and flow and calculate lagged air temp variables. *Note: air temp and flow are standardized by site.*
+Calculate lagged air temp variables, logged flow variables, and daily change in SWE.
 ```{r}
 # ensure proper ordering
 dat <- dat[order(dat$site_name, dat$year, dat$yday),]
@@ -53,23 +53,23 @@ dat <- dat %>%
   mutate(Yield_mm_log = log(Yield_mm + 0.00001),
          flow_mean_log = log(flow_mean + 0.00001)) %>%
   group_by(site_name) %>%
-  mutate(z_Yield_mm_log = c(scale(Yield_mm_log, center = TRUE, scale = TRUE)),
-         z_air_temp_mean = c(scale(air_temp_mean, center = TRUE, scale = TRUE))) %>%
   mutate(air_temp_mean_lag1 = lag(air_temp_mean, 1),
          air_temp_mean_lag2 = lag(air_temp_mean, 2),
-         z_air_temp_mean_lag1 = lag(z_air_temp_mean, n = 1),
-         z_air_temp_mean_lag2 = lag(z_air_temp_mean, n = 2)) %>%
+         delta_swe = swe_kgm2 - lag(swe_kgm2, 1)) %>%
   ungroup()
 ```
 
-Breakpoints
+
+### Trim to synchronized period
+
+Load breakpoints
 ```{r}
 springFallBPs <- read_csv("data/breakpoints.csv") %>% 
   mutate(basin = recode(basin, "Shields River" = "Yellowstone"))
 springFallBPs
 ```
 
-Join temp/flow data with breakpoints and filter to days within synchronized period. 
+Join temp/flow data with breakpoints and filter to days within synchronized period.
 ```{r}
 dat_bp <- dat %>% 
   left_join(springFallBPs) %>%
@@ -77,18 +77,40 @@ dat_bp <- dat %>%
 dat_bp
 ```
 
-Show the distribution of the number of temperature observations (non-NA) per site-year
+
+### Drop missing data
+
+Show the distribution of the number of stream temp/flow observations (non-NA) per site-year...*many years with poor data coverage, especially with respect to flow*
 ```{r}
-obspersy <- dat_bp %>% group_by(siteYear) %>% summarize(numobs = sum(!is.na(tempc_mean))) %>% ungroup()
-obspersy %>% ggplot() + geom_histogram(aes(x = numobs)) + theme_bw()
+obspersy <- dat_bp %>% 
+  group_by(siteYear) %>% 
+  summarize(streamtemp_numobs = sum(!is.na(tempc_mean)),
+            flow_numobs = sum(!is.na(Yield_mm))) %>% 
+  ungroup()
+
+paste(dim(obspersy)[1], " total site-years", sep = "")
+
+ggpubr::ggarrange(obspersy %>% ggplot() + geom_histogram(aes(x = streamtemp_numobs)) + theme_bw() + xlab("Number of stream temp. observations"),
+                  obspersy %>% ggplot() + geom_histogram(aes(x = flow_numobs)) + theme_bw() + xlab("Number of flow observations"), 
+                  nrow = 1)
 ```
 
-Drop siteYears with less than 10 days of temperature observations
+Drop siteYears with less than 50 days of stream temp./flow observations
 ```{r}
-drops <- obspersy %>% filter(numobs < 10)
+drops <- obspersy %>% filter(streamtemp_numobs < 50 | flow_numobs < 50)
+
+paste(dim(obspersy)[1]-dim(drops)[1], " filtered site-years", sep = "")
+
 dat_bp <- dat_bp %>% filter(!siteYear %in% drops$siteYear)
 ```
 
+Now drop days with missing stream temperature data
+```{r}
+dat_bp <- dat_bp %>% filter(!is.na(tempc_mean))
+```
+
+
+### Show data
 
 Plot temp data with LOESS to show seasonal hysteresis
 ```{r fig.width=7, fig.height=7}
@@ -100,8 +122,43 @@ dat_bp %>%
   theme_bw() #+ theme(panel.grid = element_blank())
 ```
 
+
+### Z-scores and dummy vars.
+
+Z-score air temp, flow, and day of year. *Note: variables are standardized both by site ("z_...") and by basin ("zbas_...").*
+```{r}
+# calculate lagged air temp
+dat_bp <- dat_bp %>%
+  group_by(site_name) %>%
+  mutate(z_Yield_mm_log = c(scale(Yield_mm_log, center = TRUE, scale = TRUE)),
+         z_air_temp_mean = c(scale(air_temp_mean, center = TRUE, scale = TRUE)),
+         z_air_temp_mean_lag1 = c(scale(air_temp_mean_lag1, center = TRUE, scale = TRUE)), #lag(z_air_temp_mean, n = 1),
+         z_air_temp_mean_lag2 = c(scale(air_temp_mean_lag2, center = TRUE, scale = TRUE)) #lag(z_air_temp_mean, n = 2),
+         #z_yday = c(scale(yday, center = TRUE, scale = TRUE))
+         ) %>%
+  ungroup() %>%
+  group_by(basin) %>%
+  mutate(zbas_Yield_mm_log = c(scale(Yield_mm_log, center = TRUE, scale = TRUE)),
+         zbas_air_temp_mean = c(scale(air_temp_mean, center = TRUE, scale = TRUE)),
+         zbas_air_temp_mean_lag1 = c(scale(air_temp_mean_lag1, center = TRUE, scale = TRUE)), #lag(zbas_air_temp_mean, n = 1),
+         zbas_air_temp_mean_lag2 = c(scale(air_temp_mean_lag2, center = TRUE, scale = TRUE)) #lag(zbas_air_temp_mean, n = 2),
+         #zbas_yday = c(scale(yday, center = TRUE, scale = TRUE))
+         ) %>%
+  ungroup()
+```
+
 Create dummy site and basin variables (numeric for JAGS), and define "rowNum" variable to allow for identifying first rows and evaluation rows
 ```{r}
+# # Drop sites without any flow or water temp observations
+# dropsites <- unlist(dat_bp %>% 
+#   group_by(site_name) %>% 
+#   summarize(numt = sum(!is.na(tempc_mean)), 
+#             numf = sum(!is.na(z_Yield_mm_log))) %>% 
+#   ungroup() %>%
+#   filter(numt == 0 | numf == 0) %>%
+#   select(site_name))
+# dat_bp <- dat_bp %>% filter(!site_name %in% dropsites)
+
 # arrange
 dat_bp <- dat_bp %>% arrange(basin, site_name, year, yday)
 
@@ -109,13 +166,12 @@ dat_bp <- dat_bp %>% arrange(basin, site_name, year, yday)
 sitecodes <- tibble(site_name = unique(dat_bp$site_name), site_code = 1:length(unique(dat_bp$site_name)))
 basincodes <- tibble(basin = unique(dat_bp$basin), basin_code = 1:length(unique(dat_bp$basin)))
 
-# join to data
+# join to data and define row number
 dat_bp <- dat_bp %>%
   left_join(sitecodes) %>%
   left_join(basincodes) %>%
   mutate(rowNum = 1:nrow(.))
 ```
-
 
 ## Landscape covariates
 
@@ -123,12 +179,9 @@ dat_bp <- dat_bp %>%
 
 ## Check correlations
 
-
 ## Write to file
 
 Write formatted data to file
 ```{r}
 write_csv(dat_bp, "data/EcoDrought_FlowTempData_formatted.csv")
 ```
-
-

@@ -23,6 +23,7 @@ book:
     - FormatData.qmd
     - ModelTemp-Letcher.qmd
     - ModelTemp-EcoDrought.qmd
+    - ModelTemp-EcoDrought-StdBasin.qmd
 
 format:
   html:
