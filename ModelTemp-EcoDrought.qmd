@@ -20,6 +20,7 @@ library(ggmcmc)
 library(GGally)
 library(beepr)
 library(lme4)
+library(factoextra)
 ```
 
 Notes:
@@ -429,6 +430,7 @@ for(i in 1:length(McmcList)) { McmcList[[i]] = coda::as.mcmc(modelout$sims.array
 Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]], McmcList[[4]], McmcList[[5]], McmcList[[6]], McmcList[[7]], McmcList[[8]], McmcList[[9]], McmcList[[10]], McmcList[[11]], McmcList[[12]], McmcList[[13]], McmcList[[14]], McmcList[[15]])
 param.summary <- modelout$summary
 head(param.summary)
+rm(fit_ed)
 ```
 
 
@@ -686,7 +688,7 @@ ggs_caterpillar(ggfit, family = "alpha.1", sort = FALSE) +
 ### Post-hoc catchment effects
 
 Bring in complete daymet data and summarize catchment covariates
-```{r fig.width=8, fig.height=8}
+```{r}
 climdf <- read_csv("data/Daymet_daily.csv")
 
 basinvars <- climdf %>% 
@@ -696,9 +698,6 @@ basinvars <- climdf %>%
   ungroup() %>%
   left_join(dat %>% group_by(site_name) %>% summarize(basin = unique(basin), area_sqmi = unique(area_sqmi), elev_ft = unique(elev_ft)) %>% ungroup())
 
-ggpairs(basinvars %>% mutate(logarea = log(area_sqmi)) %>% select(basin, swe, logarea, elev_ft), mapping = aes(color = basin))
-
-
 # ggpubr::ggarrange(climdf %>% filter(site_name == "BigCreekLower") %>% ggplot(aes(x = date, y = swe_kgm2)) + geom_line(),
 #                   climdf %>% filter(site_name == "CoalCreekLower") %>% ggplot(aes(x = date, y = swe_kgm2)) + geom_line(),
 #                   climdf %>% filter(site_name == "NicolaCreek") %>% ggplot(aes(x = date, y = swe_kgm2)) + geom_line(),
@@ -707,6 +706,175 @@ ggpairs(basinvars %>% mutate(logarea = log(area_sqmi)) %>% select(basin, swe, lo
 # 
 # climdf %>% filter(site_name == "Avery Brook", year(date) >= 2020) %>% ggplot(aes(x = date, y = daylength_sec)) + geom_line()
 ```
+
+Pairs plot: raw variables
+```{r fig.width=8, fig.height=8, message=FALSE}
+ggpairs(basinvars %>% 
+          mutate(logarea = log(area_sqmi)) %>% 
+          left_join(dat %>% 
+                      mutate(month = month(date)) %>% 
+                      filter(month %in% c(8)) %>% 
+                      group_by(site_name) %>% 
+                      summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+          select(basin, swe, logarea, elev_ft, meanSummYield), 
+        mapping = aes(color = basin))
+```
+
+Pairs plot: variables standardized by basin
+```{r fig.width=8, fig.height=8, message=FALSE}
+ggpairs(basinvars %>% 
+          mutate(logarea = log(area_sqmi)) %>% 
+          left_join(dat %>% 
+                      mutate(month = month(date)) %>% 
+                      filter(month %in% c(8)) %>% 
+                      group_by(site_name) %>% 
+                      summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+          group_by(basin) %>%
+          mutate(z_logarea = c(scale(logarea)), 
+                 z_elev_ft = c(scale(elev_ft)), 
+                 z_swe = c(scale(swe)),
+                 z_yield = c(scale(meanSummYield))) %>%
+          ungroup() %>%
+          select(basin, z_swe, z_logarea, z_elev_ft, z_yield), 
+        mapping = aes(color = basin))
+```
+
+
+#### PCA
+
+Use dimension reduction to derive variables that describe multiple correlated aspects of catchments 
+
+##### PCA on raw variables
+
+Run PCA
+```{r}
+testdata <- basinvars %>% 
+          mutate(logarea = log(area_sqmi)) %>% 
+          left_join(dat %>% 
+                      mutate(month = month(date)) %>% 
+                      filter(month %in% c(8)) %>% 
+                      group_by(site_name) %>% 
+                      summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+          select(basin, site_name, swe, logarea, elev_ft, meanSummYield)
+
+mypca <- prcomp(testdata[,-c(1:2)], scale. = TRUE)
+mypca
+```
+
+Scree plot
+```{r}
+# scree plot
+fviz_eig(mypca)
+```
+
+Variable contribution
+
+::: panel-tabset
+
+###### PC1
+```{r}
+fviz_contrib(mypca, choice = "var", axes = 1, sort.val = "none")
+```
+
+###### PC2
+```{r}
+fviz_contrib(mypca, choice = "var", axes = 2, sort.val = "none")
+```
+
+###### PC3
+```{r}
+fviz_contrib(mypca, choice = "var", axes = 3, sort.val = "none")
+```
+
+###### PC4
+```{r}
+fviz_contrib(mypca, choice = "var", axes = 4, sort.val = "none")
+```
+
+:::
+
+Bi-plot
+```{r}
+#bi-plot
+fviz_pca_biplot(mypca, repel = TRUE,
+                col.var = "black", # Variables color
+                col.ind = testdata$basin,  # Individuals color
+                addEllipses = TRUE,
+                #ellipse.type = "confidence",
+                legend.title = "Basins"
+                )
+```
+
+*PCA on raw variables mostly distinguishes basin and regional groupings: higher elevation, snowmelt-dominated catchments of the Rocky Mountains (catchments which also happen to happen to be larger, by virtue of site selection) versus lower elevation, rain-dominated catchments of the Eastern US (which happen to be smaller).*
+
+
+
+##### PCA on std variables 
+
+Run PCA: variables standardized by basin
+```{r}
+testdata <- basinvars %>% 
+          mutate(logarea = log(area_sqmi)) %>% 
+          left_join(dat %>% 
+                      mutate(month = month(date)) %>% 
+                      filter(month %in% c(8)) %>% 
+                      group_by(site_name) %>% 
+                      summarize(meanSummYield = mean(Yield_mm, na.rm = TRUE))) %>%
+          group_by(basin) %>%
+          mutate(z_logarea = c(scale(logarea)), 
+                 z_elev_ft = c(scale(elev_ft)), 
+                 z_swe = c(scale(swe)),
+                 z_yield = c(scale(meanSummYield))) %>%
+          ungroup() %>%
+          select(basin, site_name, z_swe, z_logarea, z_elev_ft, z_yield)
+
+mypca_std <- prcomp(testdata[,-c(1:2)])
+mypca_std
+```
+
+
+Scree plot
+```{r}
+# scree plot
+fviz_eig(mypca_std)
+```
+
+Variable contribution
+
+::: panel-tabset
+
+###### PC1
+```{r}
+fviz_contrib(mypca_std, choice = "var", axes = 1, sort.val = "none")
+```
+
+###### PC2
+```{r}
+fviz_contrib(mypca_std, choice = "var", axes = 2, sort.val = "none")
+```
+
+###### PC3
+```{r}
+fviz_contrib(mypca_std, choice = "var", axes = 3, sort.val = "none")
+```
+
+###### PC4
+```{r}
+fviz_contrib(mypca_std, choice = "var", axes = 4, sort.val = "none")
+```
+
+:::
+
+Bi-plot
+```{r}
+#bi-plot
+fviz_pca_biplot(mypca_std, repel = TRUE,
+                col.var = "black", # Variables color
+                col.ind = testdata$basin  # Individuals color
+                )
+```
+
+*PCA on variables standardized by basin removes the regional effects and separates sites by more relevant axes of variation. Within basins, sites mostly vary along a ~single axis of small catchment area, high elevation, and snowmelt-dominated ...to... large catchment area, low elevation, and rain-dominated (less snow).*
 
 
 #### Intercepts
@@ -793,6 +961,49 @@ p4 <- mydf %>%
 ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1)
 ```
 
+##### by PC scores
+
+```{r}
+mydf <- ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",1]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",1]", sep = ""))) %>%
+  group_by(Parameter) %>% 
+  summarize(mean = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites,
+         PC1 = mypca_std$x[,1],
+         PC2 = mypca_std$x[,2],
+         PC3 = mypca_std$x[,3],
+         PC4 = mypca_std$x[,4]) %>%
+  left_join(basinvars %>% select(basin, site_name)) 
+
+p1 <- mydf %>%
+  ggplot(aes(x = PC1, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Intercept (posterior mean)") #+ #ggpubr::stat_cor()
+
+p2 <- mydf %>%
+  ggplot(aes(x = PC2, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Intercept (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p3 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Intercept (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p4 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Intercept (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1, common.legend = TRUE, legend = "top")
+```
+
+
 
 #### Temp effect
 ```{r fig.width=9, fig.height=5}
@@ -875,6 +1086,49 @@ p4 <- mydf %>%
   theme(axis.title.y = element_blank(), axis.text.y = element_blank())
 
 ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1)
+```
+
+
+##### by PC scores
+
+```{r}
+mydf <- ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",2]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",2]", sep = ""))) %>%
+  group_by(Parameter) %>% 
+  summarize(mean = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites,
+         PC1 = mypca_std$x[,1],
+         PC2 = mypca_std$x[,2],
+         PC3 = mypca_std$x[,3],
+         PC4 = mypca_std$x[,4]) %>%
+  left_join(basinvars %>% select(basin, site_name)) 
+
+p1 <- mydf %>%
+  ggplot(aes(x = PC1, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Temp effect (posterior mean)") #+ #ggpubr::stat_cor()
+
+p2 <- mydf %>%
+  ggplot(aes(x = PC2, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Temp effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p3 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Temp effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p4 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Temp effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1, common.legend = TRUE, legend = "top")
 ```
 
 
@@ -963,6 +1217,47 @@ p4 <- mydf %>%
 ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1)
 ```
 
+##### by PC scores
+
+```{r}
+mydf <- ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",3]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",3]", sep = ""))) %>%
+  group_by(Parameter) %>% 
+  summarize(mean = mean(value)) %>%
+  ungroup() %>%
+  mutate(site_name = mysites,
+         PC1 = mypca_std$x[,1],
+         PC2 = mypca_std$x[,2],
+         PC3 = mypca_std$x[,3],
+         PC4 = mypca_std$x[,4]) %>%
+  left_join(basinvars %>% select(basin, site_name)) 
+
+p1 <- mydf %>%
+  ggplot(aes(x = PC1, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Flow effect (posterior mean)")
+
+p2 <- mydf %>%
+  ggplot(aes(x = PC2, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Flow effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p3 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Flow effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+p4 <- mydf %>%
+  ggplot(aes(x = PC3, y = mean, color = basin)) +
+  geom_smooth(method = "lm") + geom_point() + theme_bw() +
+  ylab("Flow effect (posterior mean)") + #ggpubr::stat_cor() + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+ggpubr::ggarrange(p1, p2, p3, p4, nrow = 1, common.legend = TRUE, legend = "top")
+```
 
 #### Air temp lagged 1
 
