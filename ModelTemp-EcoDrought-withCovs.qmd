@@ -1,0 +1,821 @@
+---
+title: "ModelTemp - All Data"
+---
+
+
+**Purpose:** fit hierarchical stream temp model to all EcoDrought data. Estimate random betas as functions of catchment covariates (elevation), hierarchically by basin.
+
+```{r include=FALSE}
+library(tidyverse)
+library(R2jags)
+library(MCMCvis)
+library(loo)
+library(HDInterval)
+library(scales)
+library(ggmcmc)
+library(GGally)
+library(beepr)
+library(RColorBrewer)
+```
+
+Notes:
+
+* Consider bringing in additional data from NWIS to fill in middle-upper end of catchment size spectrum (Snake: Blackrock, Cache, Granite...bigger rivers? Hoback, Gros Ventre, Greys...where to draw the line?)
+
+
+## Load data
+
+Set flow = NA to 0. Probably should change this to latent variable in model, especially when expanding to sites where flow data is more rare
+```{r}
+dat <- read_csv("data/EcoDrought_FlowTempData_formatted.csv")
+```
+
+View basins and sites
+```{r}
+DT::datatable(dat %>% group_by(basin, site_name, site_code) %>% summarise(n = n()) )
+```
+
+How much missing data?  *Need to put a prior on flow*
+```{r}
+sum(is.na(dat$z_air_temp_mean))
+sum(is.na(dat$z_air_temp_mean_lag1))
+sum(is.na(dat$z_air_temp_mean_lag2))
+sum(is.na(dat$z_Yield_mm_log))
+```
+
+
+### View data
+
+#### Temp-flow correlation
+
+::: panel-tabset
+
+##### West Brook
+```{r message=FALSE}
+dat %>% filter(basin == "West Brook") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Staunton River
+```{r}
+dat %>% filter(basin == "Staunton River") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Paine Run
+```{r}
+dat %>% filter(basin == "Paine Run") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Flathead
+```{r}
+dat %>% filter(basin == "Flathead") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Yellowstone
+```{r}
+dat %>% filter(basin == "Yellowstone") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Snake River
+```{r}
+dat %>% filter(basin == "Snake River") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+##### Donner Blitzen
+```{r}
+dat %>% filter(basin == "Donner Blitzen") %>% ggplot(aes(x = z_air_temp_mean, y = z_Yield_mm_log, colour = tempc_mean)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw() + ggpubr::stat_cor()
+```
+
+:::
+
+
+#### Tw ~ Ta + F
+
+::: panel-tabset
+
+##### West Brook
+```{r}
+dat %>% filter(basin == "West Brook") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Staunton River
+```{r}
+dat %>% filter(basin == "Staunton River") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Paine Run
+```{r}
+dat %>% filter(basin == "Paine Run") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Flathead
+```{r}
+dat %>% filter(basin == "Flathead") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Yellowstone
+```{r}
+dat %>% filter(basin == "Yellowstone") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Snake River
+```{r}
+dat %>% filter(basin == "Snake River") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+##### Donner Blitzen
+```{r}
+dat %>% filter(basin == "Donner Blitzen") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = z_Yield_mm_log)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+```
+
+:::
+
+
+#### Pairs plot
+
+```{r}
+ggpairs(dat %>% select(yday, z_air_temp_mean, z_Yield_mm_log))
+```
+
+
+
+## Specify JAGS model
+
+Specify hierarchical model following Letcher et al. (2016). MODIFIED:
+
+* estimate all main parameters hierarchically (intercept, air temp, lagged air temp, flow, and temp-flow interaction effects)
+* add prior on covariates to deal with missing values
+* calculate Bayesian R^2 and RMSE
+* remove the year trends and random effects (same as for Hocking et al 2018)
+* add catchment covariate effects on random effects parameters, hierarchical by basin
+
+```{r}
+cat("model {
+
+###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ])
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]] <- inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ])
+      }
+    
+    # Prior on covariates to handle missing (flow) data
+    for (i in 1:n){
+      for (k in 1:Krandom) {
+        X.site[i,k] ~ dnorm(0, pow(1, -2))
+      }
+    }
+    
+    # Save log-likelihoods for LOO-CV
+    for (i in 1:n) {
+      loglik[i] <- logdensity.norm(temp[i], stream.mu[i], pow(sigma, -2))
+    }
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nsites){
+      ar1[i] ~ dnorm(ar1Mean, pow(ar1SD, -2)) T(-1,1)       
+    }
+    ar1Mean ~ dunif(-1, 1) 
+    ar1SD ~ dunif(0, 2)
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+      
+    # random effect coefficients (by site with covariate effects, hierarchical by basin)
+    for (k in 1:Krandom) {
+      
+      # site level regressions
+      for (i in 1:nsites) {
+        B.site[i,k] ~ dnorm(mu.B.site[i,k], pow(sigma.B.site[k], -2))
+        mu.B.site[i,k] <- alpha.0[basin[i],k] + alpha.1[basin[i],k] * elev[i] #+ alpha.2[basin[i],k] * area[i] + alpha.3[basin[i],k] * elev[i] * area[i]
+      }
+      
+      # basin level variation in elevation effects
+      for (j in 1:nbasins) {
+        alpha.0[j,k] ~ dnorm(mu.alpha.0[k], pow(sigma.alpha.0[k], -2))
+        alpha.1[j,k] ~ dnorm(mu.alpha.1[k], pow(sigma.alpha.1[k], -2))
+        # alpha.2[j,k] ~ dnorm(mu.alpha.2[k], pow(sigma.alpha.2[k], -2))
+        # alpha.3[j,k] ~ dnorm(mu.alpha.3[k], pow(sigma.alpha.3[k], -2))
+      }
+      
+      # hyperpriors: global means and standard deviations
+      mu.alpha.0[k] ~ dnorm(0, pow(10, -2))
+      mu.alpha.1[k] ~ dnorm(0, pow(10, -2))
+      # mu.alpha.2[k] ~ dnorm(0, pow(10, -2))
+      # mu.alpha.3[k] ~ dnorm(0, pow(10, -2))
+      
+      sigma.B.site[k] ~ dunif(0, 100)
+      
+      sigma.alpha.0[k] ~ dunif(0, 100)
+      sigma.alpha.1[k] ~ dunif(0, 100)
+      # sigma.alpha.2[k] ~ dunif(0, 100)
+      # sigma.alpha.3[k] ~ dunif(0, 100)
+    }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    for (i in 1:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    # variance of model predictions (fixed + random effects)
+    var_fit <- (sd(stream.mu))^2
+
+    # residual variance
+    var_res <- (sd(residuals))^2
+
+    # calculate Bayesian R^2
+    R2 <- var_fit / (var_fit + var_res)
+
+    # Root mean squared error
+    rmse <- sqrt(mean(residuals[]^2))
+    
+    }", file = "JAGS models/DailyTempModelJAGS_Letcher_hierarchical_modified_site-basin.txt")
+```
+
+
+## Organize objects
+
+Get first observation indices and check that nFirstRowObs equals the number of unique site-years: **must be TRUE!**
+```{r}
+# row indices for first observation in each site-year
+firstObsRows <- unlist(dat %>% 
+  group_by(siteYear) %>%
+  summarize(index = rowNum[min(which(!is.na(tempc_mean)))]) %>%
+  ungroup() %>% 
+  select(index))
+nFirstObsRows <- length(firstObsRows)
+
+# does the number of first observations match the number of site years?
+nFirstObsRows == length(unique(dat$siteYear))
+```
+
+Get row indices for all other observations
+```{r}
+evalRows <- unlist(dat %>% filter(!rowNum %in% firstObsRows) %>% select(rowNum))
+nEvalRows <- length(evalRows)
+```
+
+Fixed and random effect data
+```{r}
+data.random <- data.frame(intercept = 1,
+                          airTemp = dat$z_air_temp_mean, 
+                          flow =  dat$z_Yield_mm_log,
+                          airFlow = dat$z_air_temp_mean * dat$z_Yield_mm_log,
+                          airTempLag1 = dat$z_air_temp_mean_lag1,
+                          airTempLag2 = dat$z_air_temp_mean_lag2
+                          )
+
+# data.random.covs <- log(dat %>% group_by(site_code) %>% summarize(area_sqmi = unique(area_sqmi)) %>% ungroup() %>% arrange(site_code) %>% pull(area_sqmi))
+data.random.covs <- dat %>% 
+  group_by(site_code) %>% 
+  summarize(basin = unique(basin), elev_ft = unique(elev_ft), area_sqmi = unique(area_sqmi)) %>% 
+  ungroup() %>%
+  group_by(basin) %>%
+  mutate(z_elev_ft = c(scale(elev_ft)),
+         z_area_sqmi = c(scale(area_sqmi))) %>%
+  ungroup() %>% 
+  arrange(site_code)
+
+data.random.basins <- dat %>%
+  group_by(site_code) %>% 
+  summarize(basin_code = unique(basin_code)) %>% 
+  ungroup() %>%
+  arrange(site_code) %>% 
+  pull(basin_code)
+
+any(is.na(data.random))
+any(is.na(data.random.covs))
+```
+
+Misc. objects
+```{r}
+# Ti <- length(unique(dat$year))
+# L <- dim(data.random.years)[2]
+# W.year <- diag(L)
+```
+
+Combine data in list
+```{r}
+# combine data in a list
+jags.data <- list("temp" = dat$tempc_mean,
+                  "nFirstObsRows" = nFirstObsRows,
+                  "firstObsRows" = firstObsRows,
+                  "nEvalRows" = nEvalRows,
+                  "evalRows" = evalRows,
+                  "X.site" = as.matrix(data.random),
+                  "Krandom" = dim(data.random)[2],
+                  "nsites" = length(unique(dat$site_name)),
+                  "nbasins" = length(unique(dat$basin)),
+                  "n" = dim(dat)[1],
+                  "site" = dat$site_code,
+                  "basin" = data.random.basins,
+                  "elev" = data.random.covs %>% pull(z_elev_ft)#,
+                  #"area" = data.random.covs %>% pull(z_area_sqmi)
+                  )
+```
+
+Parameters to monitor
+```{r}
+jags.params <- c("temp", "stream.mu", "sigma",
+                 "ar1" , "ar1Mean", "ar1SD",
+                 "B.site", "sigma.B.site", 
+                 "alpha.0", "mu.alpha.0", "sigma.alpha.0", 
+                 "alpha.1", "mu.alpha.1", "sigma.alpha.1",
+                 # "alpha.2", "mu.alpha.2", "sigma.alpha.2",
+                 # "alpha.3", "mu.alpha.3", "sigma.alpha.3",
+                 "residuals", "deviance","R2", "rmse", "loglik"
+                 )
+```
+
+
+## Fit model
+
+```{r eval=FALSE}
+fit_edcov <- jags.parallel(data = jags.data, inits = NULL, parameters.to.save = jags.params, 
+                        model.file = "JAGS models/DailyTempModelJAGS_Letcher_hierarchical_modified_site-basin.txt",
+                        n.chains = 10, n.thin = 50, n.burnin = 1000, n.iter = 11000, DIC = TRUE)
+```
+
+
+#### Save model ouput
+
+Save to file
+```{r eval=FALSE}
+saveRDS(fit_edcov, "Model objects/LetcherTempModel_EcoDrought_hierarchical_full_wCovs_Elev.RDS")
+```
+
+Read in fitted model object
+```{r cache=FALSE}
+fit_edcov <- readRDS("Model objects/LetcherTempModel_EcoDrought_hierarchical_full_wCovs_Elev.RDS")
+```
+
+Get MCMC samples and summary
+```{r cache=FALSE}
+top_mod <- fit_edcov
+# generate MCMC samples and store as an array
+modelout <- top_mod$BUGSoutput
+McmcList <- vector("list", length = dim(modelout$sims.array)[2])
+for(i in 1:length(McmcList)) { McmcList[[i]] = coda::as.mcmc(modelout$sims.array[,i,]) }
+# rbind MCMC samples from 10 chains 
+Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]], McmcList[[4]], McmcList[[5]], McmcList[[6]], McmcList[[7]], McmcList[[8]], McmcList[[9]], McmcList[[10]])
+param.summary <- modelout$summary
+head(param.summary)
+rm(fit_ed)
+```
+
+
+#### Check convergence
+
+Any problematic R-hat values (>1.05)?
+```{r}
+top_mod$BUGSoutput$summary[,8][top_mod$BUGSoutput$summary[,8] > 1.05]
+```
+
+View traceplots
+```{r eval=FALSE}
+MCMCtrace(top_mod, ind = TRUE, 
+          params = c("alpha.0", "alpha.1", "mu.alpha.0", "mu.alpha.1",
+                     "sigma", "sigma.alpha.0", "sigma.alpha.1"), pdf = FALSE)
+```
+
+Convert to ggs object
+```{r cache=FALSE}
+ggfit <- ggmcmc::ggs(coda::as.mcmc(top_mod), keep_original_order = TRUE)
+head(ggfit)
+```
+
+
+### LOO-CV
+
+*LOO diagnostics indicates that the model generally fits the data well.*
+```{r cache=FALSE}
+loglik <- top_mod$BUGSoutput$sims.list$loglik # extract the log-likelihood estimates for each MCMC sample
+rf <- relative_eff(exp(loglik), chain_id = rep(1:10, each = 200))
+my_loo <- loo(loglik, r_eff = rf)
+my_loo
+plot(my_loo)
+
+# badpts <- which(my_loo$diagnostics$pareto_k > 0.7)
+```
+
+### Goodness of fit
+
+Format observed and predicted values
+```{r cache=FALSE}
+Mcmcdat <- as_tibble(Mcmcdat)
+
+# subset expected and observed MCMC samples
+ppdat_exp <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "stream.mu[")])
+ppdat_obs <- as.matrix(Mcmcdat[,startsWith(names(Mcmcdat), "temp[")])
+```
+
+Bayesian p-value
+```{r}
+sum(ppdat_exp > ppdat_obs) / (dim(ppdat_obs)[1]*dim(ppdat_obs)[2])
+```
+
+PP-check, global
+```{r}
+ppdat_obs_mean <- apply(ppdat_obs, 2, mean)
+ppdat_exp_mean <- apply(ppdat_exp, 2, mean)
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted (mean)")
+```
+
+PP-check by river and year
+```{r fig.height=10, fig.width=10, eval=FALSE}
+tibble(obs = ppdat_obs_mean, exp = ppdat_exp_mean, site = dat$site_name, year = dat$year) %>% 
+  ggplot(aes(x = obs, y = exp)) + 
+  geom_point(alpha = 0.1) + 
+  # geom_smooth(method = "lm") +
+  geom_abline(intercept = 0, slope = 1, color = "red") + 
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Observed") + ylab("Predicted (mean)") +
+  facet_grid(year ~ site)
+```
+
+RMSE
+```{r}
+mean(unlist(ggfit %>% filter(Parameter == "rmse") %>% select(value)))
+ggs_density(ggfit, "rmse") + theme_bw() + theme(panel.grid = element_blank())
+```
+
+R-squared
+```{r}
+mean(unlist(ggfit %>% filter(Parameter == "R2") %>% select(value)))
+ggs_density(ggfit, "R2") + theme_bw() + theme(panel.grid = element_blank())
+```
+
+Histogram of residuals
+```{r}
+ggplot() + 
+  geom_histogram(aes(x = c(ppdat_obs_mean - ppdat_exp_mean)), color = "black", fill = "grey") + 
+  xlab("Residuals") + theme_bw() + theme(panel.grid = element_blank()) + 
+  geom_vline(xintercept = 0, color = "red") + xlim(-4,4)
+```
+
+Residuals by time: are we missing something important? Like some time dependent variable (e.g., water source to streamflow). 
+```{r}
+tibble(site_name = dat$site_name, yday = dat$yday, resid = c(ppdat_obs_mean - ppdat_exp_mean)) %>%
+  ggplot(aes(x = yday, y = resid)) +
+  geom_point(alpha = 0.1) +
+  geom_hline(yintercept = c(0), color = "red") +
+  geom_smooth(se = FALSE, linewidth = 1.5) +
+  theme_bw() + #theme(panel.grid = element_blank()) +
+  xlab("Day of year") + ylab("Residual") +
+  #facet_wrap(~site_name) + 
+  coord_cartesian(ylim = c(-3,3))
+```
+
+
+## Plot model output
+
+```{r}
+# myparams <- unique(ggfit$Parameter)
+mybasins <- c(dat %>% group_by(site_name) %>% summarize(basin = unique(basin)) %>% arrange(basin) %>% ungroup() %>% pull(basin))
+mysites <- c(dat %>% group_by(site_name) %>% summarize(site_code = unique(site_code)) %>% arrange(site_code) %>% ungroup() %>% pull(site_name))
+```
+
+
+### Primary Effects
+
+::: panel-tabset
+
+##### Air temp lag 1
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",5]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",5]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Air temp lag 1") +
+  theme_bw()
+```
+
+##### Air temp lag 2
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",6]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",6]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Air temp lag 2") +
+  theme_bw()
+```
+
+##### Lag effects correlation
+```{r}
+tibble(site_name = mysites,
+       lag1_mean = ggfit %>%
+         filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",5]", sep = "")) %>%
+         mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",5]", sep = ""))) %>%
+         group_by(Parameter) %>% summarize(lag1_mean = mean(value)) %>% ungroup() %>% pull(lag1_mean),
+       lag2_mean = ggfit %>%
+         filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",6]", sep = "")) %>%
+         mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",6]", sep = ""))) %>%
+         group_by(Parameter) %>% summarize(lag2_mean = mean(value)) %>% ungroup() %>% pull(lag2_mean),
+       basin = mybasins) %>%
+  ggplot(aes(x = lag1_mean, y = lag2_mean, color = basin)) + geom_point() + theme_bw() +
+  scale_color_brewer(palette = "Dark2")
+```
+
+##### Site intercepts
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",1]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",1]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Intercepts") +
+  theme_bw()
+```
+
+##### Site slopes - temp
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",2]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",2]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Slopes, temperature effect") +
+  theme_bw()
+```
+
+##### Site slopes - flow
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",3]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",3]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Slopes, flow effect") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Site slopes - temp x flow
+```{r, fig.width=7, fig.height=7}
+ggfit %>%
+  filter(Parameter %in% paste("B.site[", c(1:jags.data$nsites), ",4]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("B.site[", c(1:jags.data$nsites), ",4]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  aes(color = mybasins) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_discrete(labels = rev(mysites), limits = rev) + 
+  xlab("Slopes, temp-flow interaction") +
+  theme_bw() + geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+##### Autoregressive terms
+```{r, fig.width=7, fig.height=7}
+ggs_caterpillar(ggfit %>% filter(Parameter %in% paste("ar1[", c(1:jags.data$nsites), "]", sep = "")) %>%
+                  mutate(Parameter = factor(Parameter, levels = paste("ar1[", c(1:jags.data$nsites), "]", sep = ""))),
+                sort = FALSE) + scale_y_discrete(labels = rev(mysites), limits = rev) + theme_bw() + aes(color = mybasins) + xlab("Autoregressive parameter") +
+  scale_color_brewer(palette = "Dark2")
+```
+
+:::
+
+
+### Secondary Effects
+
+```{r}
+mybasin_names <- c(dat %>% group_by(basin_code) %>% summarize(basin = unique(basin)) %>% arrange(basin_code) %>% ungroup() %>% pull(basin))
+```
+
+View global effects
+```{r}
+ggfit %>%
+  filter(Parameter %in% paste("mu.alpha.1[", c(1:6), "]", sep = "")) %>%
+  mutate(Parameter = factor(Parameter, levels = paste("mu.alpha.1[", c(1:6), "]", sep = ""))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Intercept", "Air temp", "Flow", "Air temp x Flow", "Air temp, lag 1", "Air temp, lag 2")), limits = rev) + 
+  xlab("Effect of Elevation") +
+  theme_bw() + theme(legend.position = "none") + 
+  geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+#### Dot plots
+
+::: panel-tabset
+
+##### Intercept
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[1]", paste("alpha.1[", c(1:jags.data$nbasins), ",1]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[1]", paste("alpha.1[", c(1:jags.data$nbasins), ",1]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Intercept") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+##### Air Temp Effect
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[2]", paste("alpha.1[", c(1:jags.data$nbasins), ",2]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[2]", paste("alpha.1[", c(1:jags.data$nbasins), ",2]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Air Temp. Effect") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+##### Flow Effect
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[3]", paste("alpha.1[", c(1:jags.data$nbasins), ",3]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[3]", paste("alpha.1[", c(1:jags.data$nbasins), ",3]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Flow Effect") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+##### Temp-Flow Interaction
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[4]", paste("alpha.1[", c(1:jags.data$nbasins), ",4]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[4]", paste("alpha.1[", c(1:jags.data$nbasins), ",4]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Temp-Flow Interaction") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+##### Air temp Lag 1
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[5]", paste("alpha.1[", c(1:jags.data$nbasins), ",5]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[5]", paste("alpha.1[", c(1:jags.data$nbasins), ",5]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Air Temp Lag 1 Effect") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+##### Air temp Lag 2
+```{r}
+ggfit %>%
+  filter(Parameter %in% c("mu.alpha.1[6]", paste("alpha.1[", c(1:jags.data$nbasins), ",6]", sep = ""))) %>%
+  mutate(Parameter = factor(Parameter, levels = c("mu.alpha.1[6]", paste("alpha.1[", c(1:jags.data$nbasins), ",6]", sep = "")))) %>%
+  ggs_caterpillar(sort = FALSE) +
+  scale_y_discrete(labels = rev(c("Global", mybasin_names)), limits = rev) + 
+  xlab("Effect of Elevation on Air Temp Lag 2 Effect") +
+  theme_bw() + theme(legend.position = "none")
+```
+
+:::
+
+
+#### Marginal Effects Plots
+
+
+Effect of elevation on air temperature effect
+```{r fig.width=9, fig.height=5}
+mycols <- brewer.pal(7, name = "Dark2")
+
+# get site level temperature effects
+mytib <- tibble(site_name = mysites,
+                basin = mybasins,
+                basin_code = jags.data$basin,
+                eff_mean = param.summary[paste("B.site[", c(1:jags.data$nsites), ",2]", sep = ""),1],
+                eff_low = param.summary[paste("B.site[", c(1:jags.data$nsites), ",2]", sep = ""),3],
+                eff_high = param.summary[paste("B.site[", c(1:jags.data$nsites), ",2]", sep = ""),7],
+                z_elev = data.random.covs$z_elev_ft)
+
+mytib %>% ggplot() + geom_point(aes(x = z_elev, y = eff_mean, color = basin)) + scale_color_brewer(palette = "Dark2")
+
+nsims <- 100
+
+# create plotting function
+regrplot <- function (i) {
+  mytib_sub <- mytib %>% filter(basin_code == i)
+  xseq <- seq(from = min(mytib_sub$z_elev), to = max(mytib_sub$z_elev), length.out = nsims)
+  preds <- matrix(data = NA, nrow = dim(Mcmcdat)[1], ncol = nsims)
+  
+  for (j in 1:dim(Mcmcdat)[1]) { 
+    preds[j,] <- unlist(Mcmcdat[j,paste("alpha.0[", i,",2]", sep = "")]) + unlist(Mcmcdat[j,paste("alpha.1[", i,",2]", sep = "")])*xseq 
+    }
+  ymean <- apply(preds, 2, mean)
+  ylow <- apply(preds, 2, quantile, probs = 0.025)
+  yhigh <- apply(preds, 2, quantile, probs = 0.975)
+  
+  return(ggplot() +
+    geom_ribbon(aes(x = xseq, ymin = ylow, ymax = yhigh), fill = mycols[i], alpha = 0.3) +
+    geom_line(aes(x = xseq, y = ymean), color = mycols[i], linewidth = 1.5, lineend = "round") +
+    geom_errorbar(aes(x = mytib_sub$z_elev, ymin = mytib_sub$eff_low, ymax = mytib_sub$eff_high), width = 0.1) +
+    geom_point(aes(x = mytib_sub$z_elev, y = mytib_sub$eff_mean), size = 2, shape = 21, fill = mycols[i]) +
+    theme_classic() +
+    xlab("Elevation (std.)") + ylab("Temperature effect") + ggtitle(mybasin_names[i]))
+}
+
+# global density plot
+p1 <- ggfit %>% filter(Parameter == "mu.alpha.1[2]") %>% 
+  ggplot() +
+  geom_density(aes(value), fill="gray") +
+  labs(title = "Global", x = "Elevation effect", y = "Density")+
+  theme_classic()
+
+# combined plot
+egg::ggarrange(p1, 
+               regrplot(1) + theme(axis.title.x = element_blank()), 
+               regrplot(2) + theme(axis.title.x = element_blank(), axis.title.y = element_blank()), 
+               regrplot(3) + theme(axis.title.x = element_blank(), axis.title.y = element_blank()),
+               regrplot(4), 
+               regrplot(5) + theme(axis.title.y = element_blank()), 
+               regrplot(6) + theme(axis.title.y = element_blank()), 
+               regrplot(7) + theme(axis.title.y = element_blank()),
+               nrow = 2, ncol = 4)
+```
+
+
+
+Effect of elevation on flow effect
+```{r fig.width=9, fig.height=5}
+mycols <- brewer.pal(7, name = "Dark2")
+
+# get site level temperature effects
+mytib <- tibble(site_name = mysites,
+                basin = mybasins,
+                basin_code = jags.data$basin,
+                eff_mean = param.summary[paste("B.site[", c(1:jags.data$nsites), ",3]", sep = ""),1],
+                eff_low = param.summary[paste("B.site[", c(1:jags.data$nsites), ",3]", sep = ""),3],
+                eff_high = param.summary[paste("B.site[", c(1:jags.data$nsites), ",3]", sep = ""),7],
+                z_elev = data.random.covs$z_elev_ft)
+
+mytib %>% ggplot() + geom_point(aes(x = z_elev, y = eff_mean, color = basin)) + scale_color_brewer(palette = "Dark2")
+
+nsims <- 100
+
+# create plotting function
+regrplot <- function (i) {
+  mytib_sub <- mytib %>% filter(basin_code == i)
+  xseq <- seq(from = min(mytib_sub$z_elev), to = max(mytib_sub$z_elev), length.out = nsims)
+  preds <- matrix(data = NA, nrow = dim(Mcmcdat)[1], ncol = nsims)
+  
+  for (j in 1:dim(Mcmcdat)[1]) { 
+    preds[j,] <- unlist(Mcmcdat[j,paste("alpha.0[", i,",3]", sep = "")]) + unlist(Mcmcdat[j,paste("alpha.1[", i,",3]", sep = "")])*xseq 
+    }
+  ymean <- apply(preds, 2, mean)
+  ylow <- apply(preds, 2, quantile, probs = 0.025)
+  yhigh <- apply(preds, 2, quantile, probs = 0.975)
+  
+  return(ggplot() +
+    geom_ribbon(aes(x = xseq, ymin = ylow, ymax = yhigh), fill = mycols[i], alpha = 0.3) +
+    geom_line(aes(x = xseq, y = ymean), color = mycols[i], linewidth = 1.5, lineend = "round") +
+    geom_errorbar(aes(x = mytib_sub$z_elev, ymin = mytib_sub$eff_low, ymax = mytib_sub$eff_high), width = 0.1) +
+    geom_point(aes(x = mytib_sub$z_elev, y = mytib_sub$eff_mean), size = 2, shape = 21, fill = mycols[i]) +
+    theme_classic() +
+    xlab("Elevation (std.)") + ylab("Flow effect") + ggtitle(mybasin_names[i]))
+}
+
+# global density plot
+p1 <- ggfit %>% filter(Parameter == "mu.alpha.1[3]") %>% 
+  ggplot() +
+  geom_density(aes(value), fill="gray") +
+  labs(title = "Global", x = "Elevation effect", y = "Density")+
+  theme_classic()
+
+# combined plot
+egg::ggarrange(p1, 
+               regrplot(1) + theme(axis.title.x = element_blank()), 
+               regrplot(2) + theme(axis.title.x = element_blank(), axis.title.y = element_blank()), 
+               regrplot(3) + theme(axis.title.x = element_blank(), axis.title.y = element_blank()),
+               regrplot(4), 
+               regrplot(5) + theme(axis.title.y = element_blank()), 
+               regrplot(6) + theme(axis.title.y = element_blank()), 
+               regrplot(7) + theme(axis.title.y = element_blank()),
+               nrow = 2, ncol = 4)
+```
