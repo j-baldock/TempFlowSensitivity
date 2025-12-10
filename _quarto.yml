@@ -24,6 +24,7 @@ book:
     - ModelTemp-Letcher.qmd
     - ModelTemp-EcoDrought.qmd
     - ModelTemp-EcoDrought-StdBasin.qmd
+    - ModelTemp-EcoDrought-withCovs.qmd
 
 format:
   html:

@@ -1,49 +1,36 @@
 model {
 
-    ###----------------- LIKELIHOOD -----------------###
+###----------------- LIKELIHOOD -----------------###
     
     # Days without an observation on the previous day (first observation in a series)
     # No autoregressive term
     
-    # for (i in 1:nFirstObsRows){
-    #   temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
-    #   stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
-    #   trend[firstObsRows[i]] <- inprod(B.0[], X.0[firstObsRows[i], ]) + 
-    #                             inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ]) + 
-    #                             inprod(B.year[year[firstObsRows[i]], ], X.year[firstObsRows[i], ])
-    #   }
-    # 
-    # # Days with an observation on the previous dat (all days following the first day)
-    # # Includes autoregressive term (ar1)
-    # 
-    # for (i in 1:nEvalRows){ 
-    #   temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
-    #   stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
-    #   trend[evalRows[i]] <- inprod(B.0[], X.0[evalRows[i], ]) + 
-    #                         inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ]) + 
-    #                         inprod(B.year[year[evalRows[i]], ], X.year[evalRows[i], ])
-    # }
-      
-    for (i in 1:n){ 
-      temp[i] ~ dnorm(stream.mu[i], pow(sigma, -2))
-      stream.mu[i] <-  inprod(B.0[], X.0[i, ]) + 
-                            inprod(B.site[site[i], ], X.site[i, ]) + 
-                            inprod(B.year[year[i], ], X.year[i, ])
-      }  
-    
-    
-    # Deal with missing data
-    for (i in 1:n){
-      for (k in 1:Kfixed) {
-        X.0[i,k] ~ dnorm(0, pow(1, -2))
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- inprod(B.site[site[firstObsRows[i]], ], X.site[firstObsRows[i], ])
       }
-    }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]] <- inprod(B.site[site[evalRows[i]], ], X.site[evalRows[i], ])
+      }
+    
+    # Prior on covariates to handle missing (flow) data
     for (i in 1:n){
       for (k in 1:Krandom) {
         X.site[i,k] ~ dnorm(0, pow(1, -2))
       }
     }
     
+    # Save log-likelihoods for LOO-CV
+    for (i in 1:n) {
+      loglik[i] <- logdensity.norm(temp[i], stream.mu[i], pow(sigma, -2))
+    }
     
     ###----------------- PRIORS ---------------------###
     
@@ -58,40 +45,40 @@ model {
     # model variance
     sigma ~ dunif(0, 100)
     
-    
-    # fixed effect coefficients
-    for (k in 1:Kfixed) {
-      B.0[k] ~ dnorm(0, 0.001)
+      
+    # random effect coefficients (by site with covariate effects, hierarchical by basin)
+    for (k in 1:Krandom) {
+      
+      # site level regressions
+      for (i in 1:nsites) {
+        B.site[i,k] ~ dnorm(mu.B.site[i,k], pow(sigma.B.site[k], -2))
+        mu.B.site[i,k] <- alpha.0[basin[i],k] + alpha.1[basin[i],k] * elev[i] #+ alpha.2[basin[i],k] * area[i] + alpha.3[basin[i],k] * elev[i] * area[i]
       }
       
-    # random effect coefficients: sites nested within basins
-    for (k in 1:Krandom) {
+      # basin level variation in elevation effects
+      for (j in 1:nbasins) {
+        alpha.0[j,k] ~ dnorm(mu.alpha.0[k], pow(sigma.alpha.0[k], -2))
+        alpha.1[j,k] ~ dnorm(mu.alpha.1[k], pow(sigma.alpha.1[k], -2))
+        # alpha.2[j,k] ~ dnorm(mu.alpha.2[k], pow(sigma.alpha.2[k], -2))
+        # alpha.3[j,k] ~ dnorm(mu.alpha.3[k], pow(sigma.alpha.3[k], -2))
+      }
+      
+      # hyperpriors: global means and standard deviations
+      mu.alpha.0[k] ~ dnorm(0, pow(10, -2))
+      mu.alpha.1[k] ~ dnorm(0, pow(10, -2))
+      # mu.alpha.2[k] ~ dnorm(0, pow(10, -2))
+      # mu.alpha.3[k] ~ dnorm(0, pow(10, -2))
+      
       sigma.B.site[k] ~ dunif(0, 100)
-      for (i in 1:nsites) {
-        B.site[i,k] ~ dnorm(0, pow(sigma.B.site[k], -2))
-      }
+      
+      sigma.alpha.0[k] ~ dunif(0, 100)
+      sigma.alpha.1[k] ~ dunif(0, 100)
+      # sigma.alpha.2[k] ~ dunif(0, 100)
+      # sigma.alpha.3[k] ~ dunif(0, 100)
     }
-    # for (k in 1:Krandom) {
-    #   sigma.B.basin[k] ~ dunif(0, 100)
-    #   mu.B[k] ~ dnorm(0, pow(10, -2))
-    #   for (i in 1:nbasins) {
-    #     B.basin[i,k] ~ dnorm(mu.B[k], pow(sigma.B.basin[k], -2))
-    #   }
-    # }
-    
-    
-    # YEAR EFFECTS
-    for(l in 1:L) {
-      sigma.b.year[l] ~ dunif(0, 100)
-      for(t in 1:Ti){
-        B.year[t, l] ~ dnorm(0, pow(sigma.b.year[l], -2))
-        }
-      }
     
     
     ###----------------- DERIVED VALUES -------------###
-    
-    # residuals
     for (i in 1:n) {
       residuals[i] <- temp[i] - stream.mu[i]
     }
