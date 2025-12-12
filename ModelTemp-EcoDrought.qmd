@@ -1,5 +1,5 @@
 ---
-title: "ModelTemp - EcoDrought"
+title: "ModelTemp: EcoD, simple"
 execute: 
   cache: false
 ---
@@ -402,7 +402,7 @@ jags.params <- c("residuals",
 st <- Sys.time()
 fit_ed <- jags.parallel(data = jags.data, inits = NULL, parameters.to.save = jags.params, 
                         model.file = "JAGS models/DailyTempModelJAGS_Letcher_hierarchical_modified.txt",
-                        n.chains = 15, n.thin = 20, n.burnin = 5000, n.iter = 9000, DIC = TRUE)
+                        n.chains = 15, n.thin = 20, n.burnin = 1000, n.iter = 5000, DIC = TRUE)
 Sys.time() - st
 ```
 

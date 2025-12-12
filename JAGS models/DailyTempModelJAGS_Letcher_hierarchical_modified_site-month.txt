@@ -1,0 +1,134 @@
+model {
+
+###----------------- LIKELIHOOD -----------------###
+    
+    # Days without an observation on the previous day (first observation in a series)
+    # No autoregressive term
+    
+    for (i in 1:nFirstObsRows){
+      temp[firstObsRows[i]] ~ dnorm(stream.mu[firstObsRows[i]], pow(sigma, -2)) 
+      stream.mu[firstObsRows[i]] <- trend[firstObsRows[i]]
+      trend[firstObsRows[i]] <- B1[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],1] +
+                                B2[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],2] +
+                                B3[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],3] +
+                                B4[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],4] +
+                                B5[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],5] +
+                                B6[site[firstObsRows[i]], month[firstObsRows[i]]] * X.site[firstObsRows[i],6]
+      #inprod(B.site[site[firstObsRows[i]], month[firstObsRows[i]], ], X.site[firstObsRows[i], ])
+      }
+    
+    # Days with an observation on the previous dat (all days following the first day)
+    # Includes autoregressive term (ar1)
+    
+    for (i in 1:nEvalRows){ 
+      temp[evalRows[i]] ~ dnorm(stream.mu[evalRows[i]], pow(sigma, -2))
+      stream.mu[evalRows[i]] <- trend[evalRows[i]] + ar1[site[evalRows[i]]] * (temp[evalRows[i]-1] - trend[ evalRows[i]-1 ])
+      trend[evalRows[i]] <- B1[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],1] +
+                            B2[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],2] +
+                            B3[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],3] +
+                            B4[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],4] +
+                            B5[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],5] +
+                            B6[site[evalRows[i]], month[evalRows[i]]] * X.site[evalRows[i],6]
+      #inprod(B.site[site[evalRows[i]], month[evalRows[i]], ], X.site[evalRows[i], ])
+      }
+    
+    # Prior on covariates to handle missing (flow) data
+    for (i in 1:n){
+      for (k in 1:Krandom) {
+        X.site[i,k] ~ dnorm(0, pow(1, -2))
+      }
+    }
+    
+    # Save log-likelihoods for LOO-CV
+    for (i in 1:n) {
+      loglik[i] <- logdensity.norm(temp[i], stream.mu[i], pow(sigma, -2))
+    }
+    
+    ###----------------- PRIORS ---------------------###
+    
+    # ar1, hierarchical by site
+    for (i in 1:nsites){
+        ar1[i] ~ dnorm(ar1Mean, pow(ar1SD, -2)) T(-1,1)      
+    }
+    ar1Mean ~ dunif(-1, 1) 
+    ar1SD ~ dunif(0, 2)
+
+
+    # model variance
+    sigma ~ dunif(0, 100)
+    
+    
+    # random effect coefficients (by site)
+    # for (k in 1:Krandom) {
+    #   sigma.B.site[k] ~ dunif(0, 100)
+    #   for (i in 1:nsites) {
+    #     for (m in unqmonths) {
+    #       B.site[i,m,k] ~ dnorm(0, pow(sigma.B.site[k], -2))
+    #     }
+    #   }
+    # }
+    
+    
+    sigma.B1 ~ dunif(0, 100)
+    sigma.B2 ~ dunif(0, 100)
+    sigma.B3 ~ dunif(0, 100)
+    sigma.B4 ~ dunif(0, 100)
+    sigma.B5 ~ dunif(0, 100)
+    sigma.B6 ~ dunif(0, 100)
+    
+    for (i in 1:nsites) {
+      for (m in 1:nmonths) {
+        B1[i,m] ~ dnorm(0, pow(sigma.B1, -2))
+        B2[i,m] ~ dnorm(0, pow(sigma.B2, -2))
+        B3[i,m] ~ dnorm(0, pow(sigma.B3, -2))
+        B4[i,m] ~ dnorm(0, pow(sigma.B4, -2))
+        B5[i,m] ~ dnorm(0, pow(sigma.B5, -2))
+        B6[i,m] ~ dnorm(0, pow(sigma.B6, -2))
+      }
+    }
+    
+    
+    # # random effect coefficients (by site with covariate effects, hierarchical by basin)
+    # for (k in 1:Krandom) {
+    #   
+    #   # site level regressions
+    #   for (i in 1:nsites) {
+    #     B.site[i,k] ~ dnorm(mu.B.site[i,k], pow(sigma.B.site[k], -2))
+    #     mu.B.site[i,k] <- alpha.0[basin[i],k] + alpha.1[basin[i],k] * elev[i]
+    #   }
+    #   
+    #   # basin level variation in elevation effects
+    #   for (j in 1:nbasins) {
+    #     alpha.0[j,k] ~ dnorm(mu.alpha.0[k], pow(sigma.alpha.0[k], -2))
+    #     alpha.1[j,k] ~ dnorm(mu.alpha.1[k], pow(sigma.alpha.1[k], -2))
+    #   }
+    #   
+    #   # hyperpriors: global means and standard deviations
+    #   mu.alpha.0[k] ~ dnorm(0, pow(10, -2))
+    #   mu.alpha.1[k] ~ dnorm(0, pow(10, -2))
+    #   
+    #   sigma.B.site[k] ~ dunif(0, 100)
+    #   
+    #   sigma.alpha.0[k] ~ dunif(0, 100)
+    #   sigma.alpha.1[k] ~ dunif(0, 100)
+    # }
+    
+    
+    ###----------------- DERIVED VALUES -------------###
+    for (i in 1:n) {
+      residuals[i] <- temp[i] - stream.mu[i]
+    }
+    
+    # variance of model predictions (fixed + random effects)
+    var_fit <- (sd(stream.mu))^2
+
+    # residual variance
+    var_res <- (sd(residuals))^2
+
+    # calculate Bayesian R^2
+    R2 <- var_fit / (var_fit + var_res)
+
+    # Root mean squared error
+    rmse <- sqrt(mean(residuals[]^2))
+    
+    }

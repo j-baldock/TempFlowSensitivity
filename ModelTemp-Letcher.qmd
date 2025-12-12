@@ -1,5 +1,5 @@
 ---
-title: "ModelTemp - Letcher et al. (2016)"
+title: "ModelTemp: Letcher et al. (2016)"
 ---
 
 **Purpose:** fit stream temp model as in Letcher et al. (2016); modify JAGS model to estimate parameters hierarchically and check to make sure output matches. 

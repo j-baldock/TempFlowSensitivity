@@ -23,8 +23,9 @@ book:
     - FormatData.qmd
     - ModelTemp-Letcher.qmd
     - ModelTemp-EcoDrought.qmd
-    - ModelTemp-EcoDrought-StdBasin.qmd
-    - ModelTemp-EcoDrought-withCovs.qmd
+    #- ModelTemp-EcoDrought-StdBasin.qmd
+    #- ModelTemp-EcoDrought-withCovs.qmd
+    - ModelTemp-EcoDrought-ByMonth.qmd
 
 format:
   html:

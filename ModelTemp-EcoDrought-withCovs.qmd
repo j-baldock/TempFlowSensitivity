@@ -1,5 +1,5 @@
 ---
-title: "ModelTemp - All Data"
+title: "ModelTemp: EcoD w/ catchment covs"
 ---
 
 
