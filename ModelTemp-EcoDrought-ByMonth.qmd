@@ -50,6 +50,58 @@ dat <- read_csv("data/EcoDrought_FlowTempData_formatted.csv") %>%
 dat
 ```
 
+
+Most Site-Year-Months are relatively complete (>29 days of data). But there are many that are incomplete, which likely affects convergence/accurate parameter estimation. Remove these periods and re-do basin, site, and month codes.
+```{r}
+dat %>% 
+  mutate(site_year_month = paste(site_name, year, month, sep = "_")) %>%
+  group_by(site_year_month) %>%
+  summarize(nobs = n()) %>%
+  ggplot() + geom_histogram(aes(x = nobs)) + theme_bw() + xlab("Number of days per Site-Year-Month")
+
+# identify site-month-years to keep: those with >= 25 days of data
+keeps <- dat %>% 
+  mutate(site_year_month = paste(site_name, year, month, sep = "_")) %>%
+  group_by(site_year_month) %>%
+  summarize(nobs = n()) %>%
+  ungroup() %>% 
+  filter(nobs >= 20)
+
+# filter data to keeps (~complete months)
+dat2 <- dat %>%
+  mutate(site_year_month = paste(site_name, year, month, sep = "_")) %>%
+  filter(site_year_month %in% keeps$site_year_month) %>%
+  mutate(rowNum = 1:nrow(.))
+
+# are the number of unique sites, basins, and months the same between unfiltered and filtered datasets?
+length(unique(dat$site_name))
+length(unique(dat2$site_name))
+
+length(unique(dat$basin))
+length(unique(dat2$basin))
+
+length(unique(dat$month))
+length(unique(dat2$month))
+
+# if YES, rename to dat
+dat <- dat2
+
+# if NO, need to re-do site, basin, and month codes
+# ...
+# ...
+# ...
+
+sitecodes <- dat %>% 
+  group_by(site_code) %>% 
+  summarize(site_name = unique(site_name), 
+            basin = unique(basin),
+            basin_code = unique(basin_code)) %>%
+  ungroup()
+
+```
+
+
+
 View basins and sites
 ```{r}
 DT::datatable(dat %>% group_by(basin, site_name, site_code) %>% summarise(n = n()) )
@@ -148,6 +200,16 @@ dat %>% filter(basin == "Donner Blitzen") %>% ggplot(aes(x = z_air_temp_mean, y 
 ```
 
 :::
+
+
+```{r}
+dat %>% filter(basin == "Flathead") %>% ggplot(aes(x = z_air_temp_mean, y = tempc_mean, color = yday)) + geom_point(size = 0.2) + facet_wrap(~site_name) + theme_bw()
+
+dat %>% filter(site_name == "CoalCreekLower") %>% ggplot(aes(x = date, y = tempc_mean)) + geom_line()
+dat %>% filter(site_name == "CoalCreekLower") %>% ggplot(aes(x = date, y = Yield_mm_log)) + geom_line()
+
+```
+
 
 
 ### Pairs plot
@@ -442,6 +504,9 @@ Mcmcdat <- rbind(McmcList[[1]], McmcList[[2]], McmcList[[3]], McmcList[[4]], Mcm
 param.summary <- modelout$summary
 head(param.summary)
 rm(fit_ed)
+
+write_csv(rownames_to_column(as.data.frame(param.summary), var = "par"), 
+          "Model objects/LetcherTempModel_EcoDrought_hierarchical_SiteMonth_paramsummary.csv")
 ```
 
 
@@ -1317,4 +1382,510 @@ ggfit %>%
 ```
 
 :::
+
+
+## Parameter time series
+
+Function to determine if the credible interval contains 0
+```{r}
+contains_zero <- function(a, b) {
+  pmin(a, b) <= 0 & pmax(a, b) >= 0
+}
+```
+
+Get list of observed site/months
+```{r}
+sitemonths <- dat %>%
+  mutate(site_month_code = paste(site_code, month, sep = "_")) %>%
+  group_by(site_code, month) %>% 
+  summarize(site_month_code = unique(site_month_code))
+```
+
+
+### Intercepts
+
+```{r}
+# extract relevant parameter names
+allpars2 <- row.names(param.summary)
+temppars <- allpars2[grepl("B1", allpars2)]
+temppars <- temppars[-length(temppars)]
+
+# get numeric components (site code and month)
+m <- str_match(temppars, "\\[(\\d+),(\\d+)\\]")
+
+# create tibble with means and 95% credible intervals
+result <- tibble(site_code = as.integer(m[,2]),
+                 month = as.integer(m[,3]),
+                 est_mean = param.summary[temppars,1],
+                 est_low = param.summary[temppars,3],
+                 est_high = param.summary[temppars,7]
+                 ) %>%
+  mutate(cont0 = contains_zero(est_low, est_high)) %>%
+  left_join(sitecodes) %>%
+  left_join(sitemonths) %>%
+  filter(!is.na(site_month_code)) %>%
+  mutate(site_name = factor(site_name, levels = unique(dat$site_name)))
+```
+
+::: panel-tabset
+
+#### Donner Blitzen
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Donner Blitzen") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Donner Blitzen", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Flathead
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Flathead") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Flathead", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Paine Run
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Paine Run") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Paine Run", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Snake River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Snake River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Snake River", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Staunton River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Staunton River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Staunton River", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### West Brook
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "West Brook") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "West Brook", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Yellowstone
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Yellowstone") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Yellowstone", x = "Month", y = "Intercept") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+:::
+
+
+
+### Temp Effects
+
+```{r}
+# extract relevant parameter names
+allpars2 <- row.names(param.summary)
+temppars <- allpars2[grepl("B2", allpars2)]
+temppars <- temppars[-length(temppars)]
+
+# get numeric components (site code and month)
+m <- str_match(temppars, "\\[(\\d+),(\\d+)\\]")
+
+# create tibble with means and 95% credible intervals
+result <- tibble(site_code = as.integer(m[,2]),
+                 month = as.integer(m[,3]),
+                 est_mean = param.summary[temppars,1],
+                 est_low = param.summary[temppars,3],
+                 est_high = param.summary[temppars,7]
+                 ) %>%
+  mutate(cont0 = contains_zero(est_low, est_high)) %>%
+  left_join(sitecodes) %>%
+  left_join(sitemonths) %>%
+  filter(!is.na(site_month_code)) %>%
+  mutate(site_name = factor(site_name, levels = unique(dat$site_name)))
+```
+
+::: panel-tabset
+
+#### Donner Blitzen
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Donner Blitzen") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Donner Blitzen", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Flathead
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Flathead") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Flathead", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Paine Run
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Paine Run") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Paine Run", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Snake River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Snake River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Snake River", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Staunton River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Staunton River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Staunton River", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### West Brook
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "West Brook") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "West Brook", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Yellowstone
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Yellowstone") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Yellowstone", x = "Month", y = "Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+:::
+
+
+
+### Flow Effects
+
+```{r}
+# extract relevant parameter names
+allpars2 <- row.names(param.summary)
+temppars <- allpars2[grepl("B3", allpars2)]
+temppars <- temppars[-length(temppars)]
+
+# get numeric components (site code and month)
+m <- str_match(temppars, "\\[(\\d+),(\\d+)\\]")
+
+# create tibble with means and 95% credible intervals
+result <- tibble(site_code = as.integer(m[,2]),
+                 month = as.integer(m[,3]),
+                 est_mean = param.summary[temppars,1],
+                 est_low = param.summary[temppars,3],
+                 est_high = param.summary[temppars,7]
+                 ) %>%
+  mutate(cont0 = contains_zero(est_low, est_high)) %>%
+  left_join(sitecodes) %>%
+  left_join(sitemonths) %>%
+  filter(!is.na(site_month_code)) %>%
+  mutate(site_name = factor(site_name, levels = unique(dat$site_name)))
+```
+
+::: panel-tabset
+
+#### Donner Blitzen
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Donner Blitzen") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Donner Blitzen", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Flathead
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Flathead") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Flathead", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Paine Run
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Paine Run") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Paine Run", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Snake River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Snake River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Snake River", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Staunton River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Staunton River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Staunton River", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### West Brook
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "West Brook") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "West Brook", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Yellowstone
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Yellowstone") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Yellowstone", x = "Month", y = "Flow Effect") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+:::
+
+
+
+### Lag 1 Temp Effects
+
+```{r}
+# extract relevant parameter names
+allpars2 <- row.names(param.summary)
+temppars <- allpars2[grepl("B5", allpars2)]
+temppars <- temppars[-length(temppars)]
+
+# get numeric components (site code and month)
+m <- str_match(temppars, "\\[(\\d+),(\\d+)\\]")
+
+# create tibble with means and 95% credible intervals
+result <- tibble(site_code = as.integer(m[,2]),
+                 month = as.integer(m[,3]),
+                 est_mean = param.summary[temppars,1],
+                 est_low = param.summary[temppars,3],
+                 est_high = param.summary[temppars,7]
+                 ) %>%
+  mutate(cont0 = contains_zero(est_low, est_high)) %>%
+  left_join(sitecodes) %>%
+  left_join(sitemonths) %>%
+  filter(!is.na(site_month_code)) %>%
+  mutate(site_name = factor(site_name, levels = unique(dat$site_name)))
+```
+
+::: panel-tabset
+
+#### Donner Blitzen
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Donner Blitzen") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Donner Blitzen", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Flathead
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Flathead") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Flathead", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Paine Run
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Paine Run") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Paine Run", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Snake River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Snake River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Snake River", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Staunton River
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Staunton River") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Staunton River", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### West Brook
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "West Brook") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "West Brook", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+#### Yellowstone
+```{r message=FALSE, warning=FALSE}
+result %>%
+  filter(basin == "Yellowstone") %>%
+  ggplot() + 
+  geom_smooth(aes(x = month, y = est_mean), color = "black") + 
+  geom_point(aes(x = month, y = est_mean, color = site_name, shape = cont0)) + 
+  geom_line(aes(x = month, y = est_mean, color = site_name)) +
+  labs(title = "Yellowstone", x = "Month", y = "Lag 1 Temperature Effect") +
+  #geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw()
+```
+
+:::
+
 
